@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bot, Plus, QrCode, RefreshCw, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { backend, loadProfile } from "@/lib/api";
+import { isConfigured } from "@/lib/config";
 import { getProfile, getSubscription, listAgents, upsertAgent, type AgentRow, type Subscription } from "@/lib/db";
 
 export const Route = createFileRoute("/dashboard")({
@@ -69,6 +70,11 @@ function Dashboard() {
       )}
       {loading && <div className="mt-4"><Notice kind="info">Chargement de vos données…</Notice></div>}
       {loadError && <div className="mt-4"><Notice kind="error">Impossible de charger vos données : {loadError}. <button className="font-bold underline" onClick={load}>Réessayer</button></Notice></div>}
+      {!loading && !isConfigured() && (
+        <div className="mt-4">
+          <Notice kind="info">Connexions Supabase et serveur non configurées. <Link className="font-bold underline" to="/configuration">Renseigner la configuration</Link></Notice>
+        </div>
+      )}
 
       <div className="mt-6 grid grid-cols-3 gap-3">
         <Stat label="Agents" value={agents.length} />
