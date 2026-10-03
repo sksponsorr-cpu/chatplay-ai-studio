@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Plus, QrCode, RefreshCw, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
+import { Bot, Plus, QrCode, RefreshCw, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { AuthGate } from "@/components/AuthGate";
+import { useWhatsAppPairing } from "@/lib/useWhatsAppPairing";
 import { loadProfile } from "@/lib/api";
 import { isConfigured } from "@/lib/config";
-import { getAntiSpam, getProfile, getSubscription, getWaSession, listAgents, requestPairing, saveAntiSpam, upsertAgent, watchWaSession, type AgentRow, type Subscription } from "@/lib/db";
+import { getAntiSpam, getProfile, getSubscription, listAgents, saveAntiSpam, upsertAgent, type AgentRow, type Subscription } from "@/lib/db";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -170,39 +171,8 @@ function Studio({ agent, onSave, onCancel }: { agent: Agent; onSave: (a: Agent) 
   );
 }
 
-function sessionId() {
-  let id = localStorage.getItem("chatplay.session");
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem("chatplay.session", id); }
-  return id;
-}
-
 function Pairing() {
-  const [qr, setQr] = useState<string>("");
-  const [status, setStatus] = useState<string>("pending");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async (manual = false) => {
-    if (manual) setRefreshing(true);
-    try {
-      const r = manual ? await requestPairing() : (await getWaSession()) ?? (await requestPairing());
-      setError("");
-      if (!r) return;
-      if (r.status) setStatus(r.status);
-      if (r.qr) setQr(r.qr.startsWith("data:") ? r.qr : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(r.qr)}`);
-    } catch (e) { setError(errMsg(e)); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => {
-    load();
-    let ch: { unsubscribe: () => void } | null = null;
-    watchWaSession((r) => { setStatus(r.status); if (r.qr) setQr(r.qr.startsWith("data:") ? r.qr : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(r.qr)}`); })
-      .then((c) => { ch = c; }).catch((e) => setError(errMsg(e)));
-    return () => { ch?.unsubscribe(); };
-  }, [load]);
-
+  const w = useWhatsAppPairing();
   return (
     <div className="glass grid gap-6 p-5 md:grid-cols-2">
       <div className="space-y-4">
@@ -210,21 +180,30 @@ function Pairing() {
         <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
           <li>Ouvrez WhatsApp sur votre téléphone</li><li>Menu → Appareils connectés</li><li>Scannez le QR code ci-contre</li>
         </ol>
-        <p className="text-sm">Statut : {loading ? <span className="font-bold text-muted-foreground">Connexion au serveur…</span>
-          : status === "connected" ? <span className="font-bold text-success"><CheckCircle2 className="mr-1 inline h-4 w-4" />Connecté</span>
-          : error ? <span className="font-bold text-destructive">Serveur injoignable</span>
-          : <span className="font-bold text-primary">En attente du scan…</span>}</p>
-        {error && <Notice kind="error">Impossible de récupérer le QR code : {error}. Mise à jour en temps réel.</Notice>}
-        {status !== "connected" && (
-          <button className="btn-ghost" onClick={() => load(true)} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Actualisation…" : "Rafraîchir"}
-          </button>
-        )}
+        <p className="text-sm">Statut : {w.loading ? <span className="font-bold text-muted-foreground">Connexion…</span>
+          : w.status === "connected" ? <span className="font-bold text-success"><CheckCircle2 className="mr-1 inline h-4 w-4" />Connecté{w.phone ? ` · ${w.phone}` : ""}</span>
+          : w.error ? <span className="font-bold text-destructive">Erreur de connexion</span>
+          : w.qr ? <span className="font-bold text-primary">En attente du scan…</span>
+          : <span className="font-bold text-muted-foreground">Génération du QR code…</span>}</p>
+        {w.error && <Notice kind="error">Impossible de récupérer le QR code : {w.error}</Notice>}
+        <div className="flex flex-wrap gap-2">
+          {w.status !== "connected" && (
+            <button className="btn-ghost" onClick={() => w.refresh(true)} disabled={w.refreshing}>
+              <RefreshCw className={`h-4 w-4 ${w.refreshing ? "animate-spin" : ""}`} /> {w.refreshing ? "Actualisation…" : "Nouveau QR code"}
+            </button>
+          )}
+          {w.hasProblem && (
+            <button className="btn-ghost" onClick={w.diagnose} disabled={w.diagnosing}>
+              {w.diagnosing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {w.diagnosing ? "Analyse…" : "Diagnostiquer avec l'IA"}
+            </button>
+          )}
+        </div>
+        {w.diagnosis && <div className="whitespace-pre-line rounded-xl border border-primary/30 bg-accent p-4 text-sm">{w.diagnosis}</div>}
       </div>
       <div className="grid aspect-square w-full max-w-[280px] place-items-center justify-self-center rounded-2xl bg-foreground p-3">
-        {status === "connected" ? <CheckCircle2 className="h-20 w-20 text-success" />
-          : loading ? <Loader2 className="h-12 w-12 animate-spin text-background opacity-60" />
-          : qr ? <img src={qr} alt="QR code WhatsApp" className={`h-full w-full ${error ? "opacity-30" : ""}`} />
+        {w.status === "connected" ? <CheckCircle2 className="h-20 w-20 text-success" />
+          : w.loading || (!w.qr && !w.error) ? <Loader2 className="h-12 w-12 animate-spin text-background opacity-60" />
+          : w.qr ? <img src={w.qr} alt="QR code WhatsApp" className={`h-full w-full ${w.error ? "opacity-30" : ""}`} />
           : <QrCode className="h-16 w-16 text-background opacity-40" />}
       </div>
     </div>
