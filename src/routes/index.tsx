@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ArrowRight, ShieldCheck, Mic, Gift, Star, Clock, Phone, Video } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
@@ -17,6 +18,11 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
+  useEffect(() => {
+    const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && e.target.classList.add("in")), { threshold: 0.15 });
+    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b bg-background/70 backdrop-blur">
@@ -28,7 +34,7 @@ function Landing() {
 
       <main className="mx-auto max-w-6xl px-4">
         <section className="grid items-center gap-12 py-14 md:grid-cols-2 md:py-24">
-          <div className="animate-float-up text-center md:text-left">
+          <div className="animate-blur-in text-center md:text-left">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-accent px-4 py-1.5 text-sm text-accent-foreground">
               <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_10px_var(--primary)]" /> L'agent IA n°1 pour WhatsApp
             </span>
@@ -58,7 +64,7 @@ function Landing() {
             { icon: Mic, t: "Voix ElevenLabs", d: "Votre agent répond aussi en notes vocales ultra-réalistes." },
             { icon: Gift, t: "Essai exclusif", d: "3 jours complets pour seulement 5 $. Sans engagement." },
           ].map(({ icon: I, t, d }) => (
-            <div key={t} className="glass p-6">
+            <div key={t} className="reveal glass p-6">
               <I className="h-7 w-7 text-primary" />
               <h3 className="mt-4 text-lg font-bold">{t}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{d}</p>
@@ -66,7 +72,7 @@ function Landing() {
           ))}
         </section>
 
-        <section className="glass mb-20 flex flex-col items-center gap-4 p-10 text-center">
+        <section className="reveal glass mb-20 flex flex-col items-center gap-4 p-10 text-center">
           <Clock className="h-8 w-8 text-primary" />
           <h2 className="text-3xl font-bold">Ne ratez plus jamais un client.</h2>
           <Link to="/onboarding" className="btn-neon">Lancer l'essai <ArrowRight className="h-4 w-4" /></Link>
@@ -77,27 +83,44 @@ function Landing() {
   );
 }
 
+const SCRIPT = [
+  { out: true, t: "Salut ! Vous pouvez me rappeler vos tarifs ?" },
+  { out: false, t: "Bonjour 👋 Nos formules débutent à 25 $. Je vous envoie le détail ?" },
+  { out: true, t: "Oui, et vous livrez à Kinshasa ?" },
+  { out: false, t: "🎙️ Note vocale · 0:12" },
+  { out: false, t: "✅ Commande enregistrée, livraison demain !" },
+];
+
 function PhoneMock() {
-  const msgs = [
-    { out: true, t: "Salut ! Vous pouvez me rappeler vos tarifs ?" },
-    { out: false, t: "Bonjour 👋 Nos formules débutent à 25 $. Je vous envoie le détail ?" },
-    { out: true, t: "Oui, et vous livrez à Kinshasa ?" },
-    { out: false, t: "🎙️ Note vocale · 0:12" },
-  ];
+  const [n, setN] = useState(0);
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const next = SCRIPT[n];
+    if (!next) { const t = setTimeout(() => setN(0), 3500); return () => clearTimeout(t); }
+    if (!next.out) setTyping(true);
+    const t = setTimeout(() => { setTyping(false); setN(n + 1); }, next.out ? 1100 : 1800);
+    return () => clearTimeout(t);
+  }, [n]);
   return (
-    <div className="mx-auto w-full max-w-xs rounded-[2.5rem] border-4 border-secondary bg-card p-3 shadow-[var(--shadow-neon)]">
-      <div className="flex items-center gap-3 rounded-t-[2rem] bg-secondary px-4 py-3">
-        <div className="grid h-9 w-9 place-items-center rounded-full bg-primary/20 font-bold text-primary">A</div>
-        <div className="flex-1"><p className="text-sm font-semibold">Agent Chatplay</p><p className="text-xs text-success">En ligne</p></div>
-        <Phone className="h-4 w-4 text-muted-foreground" /><Video className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="space-y-3 px-2 py-5">
-        {msgs.map((m, i) => (
-          <div key={i} style={{ animationDelay: `${i * 0.25}s` }}
-            className={`animate-float-up max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${m.out ? "ml-auto rounded-br-sm bg-bubble-out" : "rounded-bl-sm bg-secondary"}`}>
-            {m.t}
-          </div>
-        ))}
+    <div className="relative mx-auto w-full max-w-xs animate-blur-in" style={{ animationDelay: ".3s" }}>
+      <div className="animate-glow absolute -inset-10 -z-10 rounded-full bg-primary/30 blur-3xl" />
+      <div className="animate-phone rounded-[2.75rem] border-[6px] border-secondary bg-card p-3 shadow-[var(--shadow-neon)]">
+        <div className="mx-auto mb-2 h-5 w-24 rounded-full bg-secondary" />
+        <div className="flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3">
+          <div className="grid h-9 w-9 place-items-center rounded-full bg-primary/20 font-bold text-primary">A</div>
+          <div className="flex-1"><p className="text-sm font-semibold">Agent Chatplay</p><p className="text-xs text-success">{typing ? "écrit…" : "En ligne"}</p></div>
+          <Phone className="h-4 w-4 text-muted-foreground" /><Video className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div className="flex h-80 flex-col justify-end space-y-3 overflow-hidden px-2 py-4">
+          {SCRIPT.slice(0, n).map((m, i) => (
+            <div key={i} className={`animate-bubble max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${m.out ? "ml-auto rounded-br-sm bg-bubble-out" : "rounded-bl-sm bg-secondary"}`}>{m.t}</div>
+          ))}
+          {typing && (
+            <div className="animate-bubble flex w-16 gap-1 rounded-2xl rounded-bl-sm bg-secondary px-4 py-3">
+              {[0, 1, 2].map((d) => <span key={d} className="animate-dot h-2 w-2 rounded-full bg-primary" style={{ animationDelay: `${d * 0.15}s` }} />)}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
