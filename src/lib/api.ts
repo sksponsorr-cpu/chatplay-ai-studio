@@ -1,8 +1,11 @@
-/** Client for the Railway backend (VITE_BACKEND_URL). */
-export const BACKEND_URL = ((import.meta.env['VITE_BACKEND_URL'] as string | undefined) ?? "").replace(/\/$/, "");
+import { getConfig } from "./config";
+
+/** Client for the Railway backend (VITE_BACKEND_URL, overridable from /configuration). */
+export const getBackendUrl = () => (getConfig().backendUrl ?? "").replace(/\/$/, "");
 
 export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
-  if (!BACKEND_URL) throw new Error("adresse du serveur non configurée (VITE_BACKEND_URL)");
+  const BACKEND_URL = getBackendUrl();
+  if (!BACKEND_URL) throw new Error("adresse du serveur non configurée — ouvrez la page Configuration");
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 15000);
   let res: Response;

@@ -1,5 +1,5 @@
 /** Data access to the external Supabase tables (profiles, agents, subscriptions). */
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 import type { Profile } from "./api";
 
 export type AgentRow = {
@@ -8,8 +8,9 @@ export type AgentRow = {
 export type Subscription = { plan: string; status: "pending" | "trialing" | "active" | "canceled" | "failed"; trial_ends_at: string | null };
 
 function client() {
-  if (!supabase) throw new Error("base de données non configurée (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)");
-  return supabase;
+  const sb = getSupabase();
+  if (!sb) throw new Error("base de données non configurée — ouvrez la page Configuration");
+  return sb;
 }
 
 /** Returns the current user id, creating an anonymous session if needed. */
