@@ -43,10 +43,10 @@ function Dashboard() {
   const persist = (list: Agent[]) => { setAgents(list); localStorage.setItem(LS, JSON.stringify(list)); };
 
   const saveAgent = async (a: Agent) => {
+    await backend.saveAgent(a); // throws → error shown in Studio, editor stays open
     const list = agents.some((x) => x.id === a.id) ? agents.map((x) => (x.id === a.id ? a : x)) : [a, ...agents];
     persist(list);
     if (supabase) await supabase.from("agents").upsert(a).then(() => undefined, () => undefined);
-    if (BACKEND_URL) backend.saveAgent(a).catch(() => undefined);
     setEditing(null);
   };
 
@@ -107,11 +107,27 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   );
 }
 
-function Studio({ agent, onSave, onCancel }: { agent: Agent; onSave: (a: Agent) => void; onCancel: () => void }) {
+function Notice({ kind, children }: { kind: "error" | "success" | "info"; children: React.ReactNode }) {
+  const cls = kind === "error" ? "border-destructive/40 bg-destructive/10 text-destructive"
+    : kind === "success" ? "border-success/40 bg-success/10 text-success" : "border-primary/30 bg-accent text-accent-foreground";
+  const Icon = kind === "error" ? AlertTriangle : kind === "success" ? CheckCircle2 : Loader2;
+  return <div role={kind === "error" ? "alert" : "status"} className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${cls}`}><Icon className={`mt-0.5 h-4 w-4 shrink-0 ${kind === "info" ? "animate-spin" : ""}`} /><span className="min-w-0 break-words">{children}</span></div>;
+}
+
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Erreur inconnue");
+
+function Studio({ agent, onSave, onCancel }: { agent: Agent; onSave: (a: Agent) => Promise<void>; onCancel: () => void }) {
   const [a, setA] = useState(agent);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async () => {
+    setSaving(true); setError("");
+    try { await onSave(a); } catch (e) { setError(errMsg(e)); } finally { setSaving(false); }
+  };
   return (
     <div className="glass space-y-5 p-5">
       <h2 className="text-xl font-bold">Studio de l'agent</h2>
+      <fieldset disabled={saving} className="space-y-5">
       <div><label className="text-sm font-semibold">Nom de l'agent</label><input className="field mt-2" value={a.name} onChange={(e) => setA({ ...a, name: e.target.value })} placeholder="Ex : Alexia, conseillère boutique" /></div>
       <div><label className="text-sm font-semibold">Instructions</label><textarea rows={6} className="field mt-2" value={a.instructions} onChange={(e) => setA({ ...a, instructions: e.target.value })} placeholder="Tu es l'assistante de ma boutique. Réponds avec chaleur, propose nos tarifs…" /></div>
       <div className="flex items-center justify-between gap-4 rounded-xl bg-secondary p-4">
@@ -125,9 +141,14 @@ function Studio({ agent, onSave, onCancel }: { agent: Agent; onSave: (a: Agent) 
         <p className="font-semibold">Mettre en ligne</p>
         <Toggle label="En ligne" on={a.status === "online"} onChange={(v) => setA({ ...a, status: v ? "online" : "draft" })} />
       </div>
+      </fieldset>
+      {saving && <Notice kind="info">Enregistrement de l'agent sur le serveur…</Notice>}
+      {error && <Notice kind="error">Impossible d'enregistrer l'agent : {error}</Notice>}
       <div className="flex gap-3">
-        <button className="btn-ghost" onClick={onCancel}>Annuler</button>
-        <button className="btn-neon flex-1" disabled={!a.name.trim()} onClick={() => onSave(a)}><Save className="h-4 w-4" /> Enregistrer</button>
+        <button className="btn-ghost" onClick={onCancel} disabled={saving}>Annuler</button>
+        <button className="btn-neon flex-1" disabled={!a.name.trim() || saving} onClick={submit}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {saving ? "Enregistrement…" : "Enregistrer"}
+        </button>
       </div>
     </div>
   );
@@ -143,63 +164,104 @@ function Pairing() {
   const [qr, setQr] = useState<string>("");
   const [status, setStatus] = useState<string>("pending");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    setError("");
+  const load = useCallback(async (manual = false) => {
+    if (manual) setRefreshing(true);
     try {
       const r = await backend.getQr(sessionId());
+      setError("");
       if (r.status) setStatus(r.status);
       if (r.qr) setQr(r.qr.startsWith("data:") ? r.qr : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(r.qr)}`);
-    } catch (e) { setError(e instanceof Error ? e.message : "Erreur"); }
+    } catch (e) { setError(errMsg(e)); }
+    finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   useEffect(() => {
+    if (status === "connected") return;
     load();
-    const t = setInterval(() => { if (status !== "connected") load(); }, 5000);
+    const t = setInterval(() => load(), 5000);
     return () => clearInterval(t);
   }, [load, status]);
 
   return (
     <div className="glass grid gap-6 p-5 md:grid-cols-2">
-      <div>
+      <div className="space-y-4">
         <h2 className="text-xl font-bold">Appairer WhatsApp</h2>
-        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
           <li>Ouvrez WhatsApp sur votre téléphone</li><li>Menu → Appareils connectés</li><li>Scannez le QR code ci-contre</li>
         </ol>
-        <p className="mt-4 text-sm">Statut : {status === "connected"
-          ? <span className="font-bold text-success"><CheckCircle2 className="mr-1 inline h-4 w-4" />Connecté</span>
+        <p className="text-sm">Statut : {loading ? <span className="font-bold text-muted-foreground">Connexion au serveur…</span>
+          : status === "connected" ? <span className="font-bold text-success"><CheckCircle2 className="mr-1 inline h-4 w-4" />Connecté</span>
+          : error ? <span className="font-bold text-destructive">Serveur injoignable</span>
           : <span className="font-bold text-primary">En attente du scan…</span>}</p>
-        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-        <button className="btn-ghost mt-4" onClick={load}><RefreshCw className="h-4 w-4" /> Rafraîchir</button>
+        {error && <Notice kind="error">Impossible de récupérer le QR code : {error}. Nouvelle tentative automatique toutes les 5 s.</Notice>}
+        {status !== "connected" && (
+          <button className="btn-ghost" onClick={() => load(true)} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Actualisation…" : "Rafraîchir"}
+          </button>
+        )}
       </div>
       <div className="grid aspect-square w-full max-w-[280px] place-items-center justify-self-center rounded-2xl bg-foreground p-3">
-        {qr && status !== "connected" ? <img src={qr} alt="QR code WhatsApp" className="h-full w-full" />
+        {status === "connected" ? <CheckCircle2 className="h-20 w-20 text-success" />
+          : loading ? <Loader2 className="h-12 w-12 animate-spin text-background opacity-60" />
+          : qr ? <img src={qr} alt="QR code WhatsApp" className={`h-full w-full ${error ? "opacity-30" : ""}`} />
           : <QrCode className="h-16 w-16 text-background opacity-40" />}
       </div>
     </div>
   );
 }
 
+const DEFAULT_AS = { maxPerHour: 30, minDelay: 4, typing: true, blockLinks: true, quietHours: false, blacklist: "" };
+
 function AntiSpam() {
-  const [s, setS] = useState({ maxPerHour: 30, minDelay: 4, typing: true, blockLinks: true, quietHours: false, blacklist: "" });
-  const [msg, setMsg] = useState("");
-  useEffect(() => { try { setS((x) => ({ ...x, ...JSON.parse(localStorage.getItem("chatplay.antispam") || "{}") })); } catch { /* ignore */ } }, []);
+  const [s, setS] = useState(DEFAULT_AS);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<{ kind: "error" | "success"; text: string } | null>(null);
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true); setLoadError("");
+    try {
+      const r = await backend.getAntiSpam(sessionId());
+      setS({ ...DEFAULT_AS, ...(r.settings ?? r) });
+    } catch (e) { setLoadError(errMsg(e)); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { fetchSettings(); }, [fetchSettings]);
+
   const save = async () => {
-    localStorage.setItem("chatplay.antispam", JSON.stringify(s));
-    try { await backend.saveAntiSpam(sessionId(), s); setMsg("Réglages synchronisés ✓"); }
-    catch (e) { setMsg(`Enregistré localement — ${e instanceof Error ? e.message : "erreur serveur"}`); }
+    setSaving(true); setResult(null);
+    try { await backend.saveAntiSpam(sessionId(), s); setResult({ kind: "success", text: "Réglages enregistrés sur le serveur." }); }
+    catch (e) { setResult({ kind: "error", text: `Échec de l'enregistrement : ${errMsg(e)}` }); }
+    finally { setSaving(false); }
   };
+
+  if (loading) return <div className="glass p-5"><Notice kind="info">Chargement des réglages anti-spam…</Notice></div>;
+
   return (
     <div className="glass space-y-5 p-5">
       <h2 className="text-xl font-bold">Protection anti-spam</h2>
+      {loadError && (
+        <Notice kind="error">
+          Réglages non chargés ({loadError}). Valeurs par défaut affichées.{" "}
+          <button className="font-bold underline" onClick={fetchSettings}>Réessayer</button>
+        </Notice>
+      )}
+      <fieldset disabled={saving} className="space-y-5">
       <Range label="Messages max par heure" value={s.maxPerHour} min={5} max={120} onChange={(v) => setS({ ...s, maxPerHour: v })} />
       <Range label="Délai minimum entre réponses (s)" value={s.minDelay} min={1} max={30} onChange={(v) => setS({ ...s, minDelay: v })} />
       {([["typing", "Simuler « en train d'écrire »"], ["blockLinks", "Bloquer les liens suspects"], ["quietHours", "Pause nocturne (23h–6h)"]] as const).map(([k, l]) => (
         <div key={k} className="flex items-center justify-between gap-4"><span className="font-semibold">{l}</span><Toggle label={l} on={s[k]} onChange={(v) => setS({ ...s, [k]: v })} /></div>
       ))}
       <div><label className="text-sm font-semibold">Mots-clés bloqués (séparés par des virgules)</label><input className="field mt-2" value={s.blacklist} onChange={(e) => setS({ ...s, blacklist: e.target.value })} placeholder="arnaque, crypto, …" /></div>
-      <button className="btn-neon w-full sm:w-auto" onClick={save}><Save className="h-4 w-4" /> Enregistrer</button>
-      {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
+      </fieldset>
+      <button className="btn-neon w-full sm:w-auto" onClick={save} disabled={saving}>
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {saving ? "Enregistrement…" : "Enregistrer"}
+      </button>
+      {result && <Notice kind={result.kind}>{result.text}</Notice>}
     </div>
   );
 }
