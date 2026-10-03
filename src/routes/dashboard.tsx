@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Plus, QrCode, RefreshCw, ShieldCheck, Mic, Save, CheckCircle2 } from "lucide-react";
+import { Bot, Plus, QrCode, RefreshCw, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { backend, BACKEND_URL, loadProfile } from "@/lib/api";
+import { backend, loadProfile } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/dashboard")({
