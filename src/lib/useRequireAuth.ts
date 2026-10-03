@@ -29,6 +29,3 @@ export function useRequireAuth(opts: { redirectIfOnboarded?: boolean } = {}) {
   }, [navigate, redirectIfOnboarded]);
   return ready;
 }
-
-
-}
