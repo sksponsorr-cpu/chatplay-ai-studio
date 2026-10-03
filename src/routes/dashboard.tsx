@@ -2,9 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Plus, QrCode, RefreshCw, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { backend, loadProfile } from "@/lib/api";
+import { loadProfile } from "@/lib/api";
 import { isConfigured } from "@/lib/config";
-import { getProfile, getSubscription, listAgents, upsertAgent, type AgentRow, type Subscription } from "@/lib/db";
+import { getAntiSpam, getProfile, getSubscription, getWaSession, listAgents, requestPairing, saveAntiSpam, upsertAgent, watchWaSession, type AgentRow, type Subscription } from "@/lib/db";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -49,7 +49,6 @@ function Dashboard() {
 
   const saveAgent = async (a: Agent) => {
     await upsertAgent(a);        // Supabase = source of truth
-    await backend.saveAgent(a);  // Railway deploys/updates the running agent
     setAgents((list) => (list.some((x) => x.id === a.id) ? list.map((x) => (x.id === a.id ? a : x)) : [a, ...list]));
     setEditing(null);
   };
@@ -186,8 +185,9 @@ function Pairing() {
   const load = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
     try {
-      const r = await backend.getQr(sessionId());
+      const r = manual ? await requestPairing() : (await getWaSession()) ?? (await requestPairing());
       setError("");
+      if (!r) return;
       if (r.status) setStatus(r.status);
       if (r.qr) setQr(r.qr.startsWith("data:") ? r.qr : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(r.qr)}`);
     } catch (e) { setError(errMsg(e)); }
@@ -195,11 +195,12 @@ function Pairing() {
   }, []);
 
   useEffect(() => {
-    if (status === "connected") return;
     load();
-    const t = setInterval(() => load(), 5000);
-    return () => clearInterval(t);
-  }, [load, status]);
+    let ch: { unsubscribe: () => void } | null = null;
+    watchWaSession((r) => { setStatus(r.status); if (r.qr) setQr(r.qr.startsWith("data:") ? r.qr : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(r.qr)}`); })
+      .then((c) => { ch = c; }).catch((e) => setError(errMsg(e)));
+    return () => { ch?.unsubscribe(); };
+  }, [load]);
 
   return (
     <div className="glass grid gap-6 p-5 md:grid-cols-2">
@@ -212,7 +213,7 @@ function Pairing() {
           : status === "connected" ? <span className="font-bold text-success"><CheckCircle2 className="mr-1 inline h-4 w-4" />Connecté</span>
           : error ? <span className="font-bold text-destructive">Serveur injoignable</span>
           : <span className="font-bold text-primary">En attente du scan…</span>}</p>
-        {error && <Notice kind="error">Impossible de récupérer le QR code : {error}. Nouvelle tentative automatique toutes les 5 s.</Notice>}
+        {error && <Notice kind="error">Impossible de récupérer le QR code : {error}. Mise à jour en temps réel.</Notice>}
         {status !== "connected" && (
           <button className="btn-ghost" onClick={() => load(true)} disabled={refreshing}>
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Actualisation…" : "Rafraîchir"}
@@ -241,8 +242,8 @@ function AntiSpam() {
   const fetchSettings = useCallback(async () => {
     setLoading(true); setLoadError("");
     try {
-      const r = await backend.getAntiSpam(sessionId());
-      setS({ ...DEFAULT_AS, ...(r.settings ?? r) });
+      const r = await getAntiSpam();
+      setS({ ...DEFAULT_AS, ...(r ?? {}) });
     } catch (e) { setLoadError(errMsg(e)); }
     finally { setLoading(false); }
   }, []);
@@ -250,7 +251,7 @@ function AntiSpam() {
 
   const save = async () => {
     setSaving(true); setResult(null);
-    try { await backend.saveAntiSpam(sessionId(), s); setResult({ kind: "success", text: "Réglages enregistrés sur le serveur." }); }
+    try { await saveAntiSpam(s); setResult({ kind: "success", text: "Réglages enregistrés." }); }
     catch (e) { setResult({ kind: "error", text: `Échec de l'enregistrement : ${errMsg(e)}` }); }
     finally { setSaving(false); }
   };
