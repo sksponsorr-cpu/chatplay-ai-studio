@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bot, Plus, QrCode, RefreshCw, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { backend, loadProfile } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { getProfile, getSubscription, listAgents, upsertAgent, type AgentRow, type Subscription } from "@/lib/db";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -19,34 +19,37 @@ export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
 });
 
-type Agent = { id: string; name: string; instructions: string; voice_enabled: boolean; voice: string; status: "online" | "draft" };
+type Agent = AgentRow;
 const VOICES = ["Sarah", "Roger", "Laura", "George", "Charlie"];
-const LS = "chatplay.agents";
+const SUB_LABEL: Record<Subscription["status"], string> = {
+  pending: "Paiement en attente", trialing: "Essai en cours", active: "Abonnement actif", canceled: "Abonnement annulé", failed: "Paiement échoué",
+};
 
 function Dashboard() {
   const [name, setName] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [sub, setSub] = useState<Subscription | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [editing, setEditing] = useState<Agent | null>(null);
   const [tab, setTab] = useState<"studio" | "whatsapp" | "antispam">("studio");
 
-  useEffect(() => {
+  const load = useCallback(async () => {
+    setLoading(true); setLoadError("");
     setName(loadProfile().name ?? "");
-    (async () => {
-      if (supabase) {
-        const { data } = await supabase.from("agents").select("*").order("created_at", { ascending: false });
-        if (data) return setAgents(data as Agent[]);
-      }
-      try { setAgents(JSON.parse(localStorage.getItem(LS) || "[]")); } catch { /* ignore */ }
-    })();
+    try {
+      const [p, list, s] = await Promise.all([getProfile(), listAgents(), getSubscription()]);
+      if (p?.name) setName(p.name);
+      setAgents(list); setSub(s);
+    } catch (e) { setLoadError(e instanceof Error ? e.message : "Erreur inconnue"); }
+    finally { setLoading(false); }
   }, []);
-
-  const persist = (list: Agent[]) => { setAgents(list); localStorage.setItem(LS, JSON.stringify(list)); };
+  useEffect(() => { load(); }, [load]);
 
   const saveAgent = async (a: Agent) => {
-    await backend.saveAgent(a); // throws → error shown in Studio, editor stays open
-    const list = agents.some((x) => x.id === a.id) ? agents.map((x) => (x.id === a.id ? a : x)) : [a, ...agents];
-    persist(list);
-    if (supabase) await supabase.from("agents").upsert(a).then(() => undefined, () => undefined);
+    await upsertAgent(a);        // Supabase = source of truth
+    await backend.saveAgent(a);  // Railway deploys/updates the running agent
+    setAgents((list) => (list.some((x) => x.id === a.id) ? list.map((x) => (x.id === a.id ? a : x)) : [a, ...list]));
     setEditing(null);
   };
 
@@ -59,6 +62,13 @@ function Dashboard() {
 
       <h1 className="mt-8 text-3xl font-bold">Content de vous revoir{name ? `, ${name}` : ""} 👋</h1>
       <p className="mt-1 text-muted-foreground">Voici l'état de vos agents aujourd'hui.</p>
+      {sub && (
+        <span className={`mt-3 inline-block rounded-full px-3 py-1 text-xs font-bold ${sub.status === "active" || sub.status === "trialing" ? "bg-success/15 text-success" : sub.status === "pending" ? "bg-accent text-accent-foreground" : "bg-destructive/15 text-destructive"}`}>
+          {SUB_LABEL[sub.status]}{sub.trial_ends_at && sub.status === "trialing" ? ` · jusqu'au ${new Date(sub.trial_ends_at).toLocaleDateString("fr-FR")}` : ""}
+        </span>
+      )}
+      {loading && <div className="mt-4"><Notice kind="info">Chargement de vos données…</Notice></div>}
+      {loadError && <div className="mt-4"><Notice kind="error">Impossible de charger vos données : {loadError}. <button className="font-bold underline" onClick={load}>Réessayer</button></Notice></div>}
 
       <div className="mt-6 grid grid-cols-3 gap-3">
         <Stat label="Agents" value={agents.length} />
