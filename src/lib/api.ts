@@ -1,5 +1,5 @@
 /** Client for the Railway backend (VITE_BACKEND_URL). */
-export const BACKEND_URL = ((import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "").replace(/\/$/, "");
+export const BACKEND_URL = ((import.meta.env['VITE_BACKEND_URL'] as string | undefined) ?? "").replace(/\/$/, "");
 
 export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   if (!BACKEND_URL) throw new Error("VITE_BACKEND_URL n'est pas configuré");

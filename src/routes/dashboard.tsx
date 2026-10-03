@@ -51,11 +51,11 @@ function Dashboard() {
   };
 
   const online = agents.filter((a) => a.status === "online").length;
-  const newAgent = (): Agent => ({ id: crypto.randomUUID(), name: "", instructions: "", voice_enabled: false, voice: VOICES[0], status: "draft" });
+  const newAgent = (): Agent => ({ id: crypto.randomUUID(), name: "", instructions: "", voice_enabled: false, voice: "Sarah", status: "draft" });
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5">
-      <div className="flex items-center justify-between"><Logo /><span className="grid h-9 w-9 place-items-center rounded-full bg-accent font-bold text-accent-foreground">{(name || "U")[0].toUpperCase()}</span></div>
+      <div className="flex items-center justify-between"><Logo /><span className="grid h-9 w-9 place-items-center rounded-full bg-accent font-bold text-accent-foreground">{(name || "U").charAt(0).toUpperCase()}</span></div>
 
       <h1 className="mt-8 text-3xl font-bold">Content de vous revoir{name ? `, ${name}` : ""} 👋</h1>
       <p className="mt-1 text-muted-foreground">Voici l'état de vos agents aujourd'hui.</p>
