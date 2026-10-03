@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Bot, Check, Loader2 } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { AuthGate } from "@/components/AuthGate";
 import { loadProfile, saveProfile, type Profile } from "@/lib/api";
 import { getProfile, upsertProfile } from "@/lib/db";
 
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/onboarding")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: Onboarding,
+  component: () => <AuthGate redirectIfOnboarded><Onboarding /></AuthGate>,
 });
 
 const TOTAL = 7;

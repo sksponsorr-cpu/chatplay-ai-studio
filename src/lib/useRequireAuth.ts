@@ -30,6 +30,5 @@ export function useRequireAuth(opts: { redirectIfOnboarded?: boolean } = {}) {
   return ready;
 }
 
-export function AuthLoading() {
-  return null;
+
 }

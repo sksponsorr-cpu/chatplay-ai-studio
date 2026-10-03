@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Plus, QrCode, RefreshCw, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { AuthGate } from "@/components/AuthGate";
 import { loadProfile } from "@/lib/api";
 import { isConfigured } from "@/lib/config";
 import { getAntiSpam, getProfile, getSubscription, getWaSession, listAgents, requestPairing, saveAntiSpam, upsertAgent, watchWaSession, type AgentRow, type Subscription } from "@/lib/db";
@@ -17,7 +18,7 @@ export const Route = createFileRoute("/dashboard")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: Dashboard,
+  component: () => <AuthGate><Dashboard /></AuthGate>,
 });
 
 type Agent = AgentRow;
