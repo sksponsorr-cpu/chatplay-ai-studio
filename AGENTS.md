@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Data uses the user's external Supabase via `src/lib/supabase.ts` (VITE_SUPABASE_URL/ANON_KEY), not Lovable Cloud — user requirement.
+- All Railway backend calls go through `src/lib/api.ts` (VITE_BACKEND_URL) — single place to adjust endpoints.
