@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Check, CreditCard, Lock, Smartphone, Star, X, Gift } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { AuthGate } from "@/components/AuthGate";
 import { loadProfile } from "@/lib/api";
 import { startTrialPayment } from "@/lib/db";
 
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/checkout")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: Checkout,
+  component: () => <AuthGate><Checkout /></AuthGate>,
 });
 
 const REVIEWS = [

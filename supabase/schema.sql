@@ -74,7 +74,5 @@ drop policy if exists "re-request pairing" on public.whatsapp_sessions;
 create policy "re-request pairing" on public.whatsapp_sessions for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id and status = 'pending');
 
 -- Realtime for live QR / connection status.
-do $$ begin
-  alter publication supabase_realtime add table public.whatsapp_sessions;
-  alter publication supabase_realtime add table public.subscriptions;
-exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.whatsapp_sessions; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.subscriptions; exception when duplicate_object then null; end $$;
