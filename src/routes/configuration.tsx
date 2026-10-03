@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Save, CheckCircle2, Loader2, TriangleAlert, Database, KeyRound, Server } from "lucide-react";
+import { Save, CheckCircle2, Loader2, TriangleAlert, Database, KeyRound } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { getConfig, saveConfig, type AppConfig } from "@/lib/config";
 
@@ -8,9 +8,9 @@ export const Route = createFileRoute("/configuration")({
   head: () => ({
     meta: [
       { title: "Configuration — Chatplay" },
-      { name: "description", content: "Renseignez les connexions Supabase et du serveur Railway de Chatplay." },
+      { name: "description", content: "Renseignez les connexions Supabase de Chatplay." },
       { property: "og:title", content: "Configuration — Chatplay" },
-      { property: "og:description", content: "Connectez votre base de données et votre serveur." },
+      { property: "og:description", content: "Connectez votre base de données." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -33,17 +33,10 @@ const FIELDS = [
     hint: "Dans Supabase : Settings → API — clé « anon / publishable » (sb_publishable_… ou eyJ…)",
     validate: (v: string) => (v.trim().length >= 20 ? true : "La clé semble trop courte — copiez-la depuis Settings → API"),
   },
-  {
-    key: "backendUrl" as const,
-    label: "Adresse du serveur Railway",
-    icon: Server,
-    hint: "L'adresse de votre backend (ex. https://votre-app.up.railway.app)",
-    validate: (v: string) => /^https:\/\/[^\s]+\.[^\s]+$/.test(v) || "Doit être une adresse commençant par https://",
-  },
 ];
 
 function Configuration() {
-  const [values, setValues] = useState<AppConfig>(() => ({ supabaseUrl: "", supabaseAnonKey: "", backendUrl: "", ...getConfig() }));
+  const [values, setValues] = useState<AppConfig>(() => ({ supabaseUrl: "", supabaseAnonKey: "", ...getConfig() }));
   const [errors, setErrors] = useState<Partial<Record<keyof AppConfig, string>>>({});
   const [saved, setSaved] = useState(false);
 
@@ -63,7 +56,7 @@ function Configuration() {
     if (Object.keys(next).length > 0) return;
     saveConfig(values);
     setSaved(true);
-    // Reload so the Supabase client and backend URL are rebuilt with the new values.
+    // Reload so the Supabase client is rebuilt with the new values.
     setTimeout(() => window.location.reload(), 700);
   };
 
