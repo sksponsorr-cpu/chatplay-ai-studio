@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Bot, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bot, Check, Loader2 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { loadProfile, saveProfile, type Profile } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { getProfile, upsertProfile } from "@/lib/db";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -30,8 +30,13 @@ function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [p, setP] = useState<Profile>({ name: "", business: "", sector: "", volume: "", goal: "", tone: "", shortcuts: [] });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
-  useEffect(() => { setP((x) => ({ ...x, ...loadProfile() })); }, []);
+  useEffect(() => {
+    setP((x) => ({ ...x, ...loadProfile() }));
+    getProfile().then((remote) => { if (remote) setP((x) => ({ ...x, ...Object.fromEntries(Object.entries(remote).filter(([, v]) => v != null)) })); }).catch(() => undefined);
+  }, []);
   const set = (patch: Partial<Profile>) => setP((x) => { const n = { ...x, ...patch }; saveProfile(n); return n; });
 
   const canNext = [
@@ -40,8 +45,10 @@ function Onboarding() {
 
   const next = async () => {
     if (step < TOTAL) return setStep(step + 1);
-    if (supabase) await supabase.from("profiles_onboarding").insert({ ...p }).then(() => undefined, () => undefined);
-    navigate({ to: "/checkout" });
+    setSaving(true); setSaveError("");
+    try { await upsertProfile(p); navigate({ to: "/checkout" }); }
+    catch (e) { setSaveError(e instanceof Error ? e.message : "Erreur inconnue"); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -87,10 +94,11 @@ function Onboarding() {
         {step === 7 && <Summary p={p} />}
       </div>
 
+      {saveError && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">Impossible d'enregistrer votre profil : {saveError}</p>}
       <div className="sticky bottom-0 flex gap-3 bg-background/80 py-4 backdrop-blur">
-        {step > 1 && <button className="btn-ghost" onClick={() => setStep(step - 1)} aria-label="Retour"><ArrowLeft className="h-5 w-5" /></button>}
-        <button className="btn-neon flex-1" disabled={!canNext} onClick={next}>
-          {step === TOTAL ? "Activer mon agent" : "Continuer"} <ArrowRight className="h-5 w-5" />
+        {step > 1 && <button className="btn-ghost" disabled={saving} onClick={() => setStep(step - 1)} aria-label="Retour"><ArrowLeft className="h-5 w-5" /></button>}
+        <button className="btn-neon flex-1" disabled={!canNext || saving} onClick={next}>
+          {saving ? <><Loader2 className="h-5 w-5 animate-spin" /> Enregistrement…</> : <>{step === TOTAL ? "Activer mon agent" : "Continuer"} <ArrowRight className="h-5 w-5" /></>}
         </button>
       </div>
     </div>
