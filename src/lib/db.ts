@@ -1,5 +1,5 @@
 /** Data access to the external Supabase tables (profiles, agents, subscriptions). */
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 import type { Profile } from "./api";
 
 export type AgentRow = {
