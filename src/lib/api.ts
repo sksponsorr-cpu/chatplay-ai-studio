@@ -2,14 +2,27 @@
 export const BACKEND_URL = ((import.meta.env['VITE_BACKEND_URL'] as string | undefined) ?? "").replace(/\/$/, "");
 
 export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
-  if (!BACKEND_URL) throw new Error("VITE_BACKEND_URL n'est pas configuré");
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
-  });
+  if (!BACKEND_URL) throw new Error("adresse du serveur non configurée (VITE_BACKEND_URL)");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  let res: Response;
+  try {
+    res = await fetch(`${BACKEND_URL}${path}`, {
+      ...init,
+      signal: ctrl.signal,
+      headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+    });
+  } catch (e) {
+    throw new Error(ctrl.signal.aborted ? "le serveur ne répond pas (délai dépassé)" : "serveur injoignable, vérifiez votre connexion");
+  } finally { clearTimeout(timer); }
   const text = await res.text();
-  if (!res.ok) throw new Error(`Erreur ${res.status}: ${text || res.statusText}`);
-  return (text ? JSON.parse(text) : {}) as T;
+  let body: unknown = {};
+  try { body = text ? JSON.parse(text) : {}; } catch { body = { message: text }; }
+  if (!res.ok) {
+    const b = body as { error?: string; message?: string };
+    throw new Error(`${b.error || b.message || res.statusText || "erreur serveur"} (code ${res.status})`);
+  }
+  return body as T;
 }
 
 export type QrResponse = { qr?: string; status?: "pending" | "connected" | "disconnected" };
@@ -17,6 +30,8 @@ export type QrResponse = { qr?: string; status?: "pending" | "connected" | "disc
 export const backend = {
   getQr: (sessionId: string) => api<QrResponse>(`/whatsapp/qr?session=${encodeURIComponent(sessionId)}`),
   getStatus: (sessionId: string) => api<QrResponse>(`/whatsapp/status?session=${encodeURIComponent(sessionId)}`),
+  getAntiSpam: (sessionId: string) =>
+    api<{ settings?: Record<string, unknown> } & Record<string, unknown>>(`/whatsapp/antispam?session=${encodeURIComponent(sessionId)}`),
   saveAntiSpam: (sessionId: string, settings: unknown) =>
     api(`/whatsapp/antispam`, { method: "POST", body: JSON.stringify({ sessionId, settings }) }),
   saveAgent: (agent: unknown) => api(`/agents`, { method: "POST", body: JSON.stringify(agent) }),
