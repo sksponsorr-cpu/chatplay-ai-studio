@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, CreditCard, Lock, Smartphone, Star, X, Gift } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { backend, loadProfile } from "@/lib/api";
+import { markSubscriptionPending } from "@/lib/db";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -51,7 +52,11 @@ function Checkout() {
     setError(""); setLoading(true); paying.current = true;
     try {
       const p = loadProfile();
-      const res = await backend.createSwychrPayment({ amount: 5, currency: "USD", email, phone, name: p.name ?? "", method });
+      const userId = await markSubscriptionPending(email);
+      const res = await backend.createSwychrPayment({
+        amount: 5, currency: "USD", email, phone, name: p.name ?? "", method, userId,
+        returnUrl: `${window.location.origin}/dashboard`,
+      });
       const url = res.payment_url ?? res.url;
       if (!url) throw new Error("Lien de paiement introuvable");
       window.location.href = url;

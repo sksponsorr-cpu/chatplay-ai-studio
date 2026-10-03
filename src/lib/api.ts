@@ -35,7 +35,7 @@ export const backend = {
   saveAntiSpam: (sessionId: string, settings: unknown) =>
     api(`/whatsapp/antispam`, { method: "POST", body: JSON.stringify({ sessionId, settings }) }),
   saveAgent: (agent: unknown) => api(`/agents`, { method: "POST", body: JSON.stringify(agent) }),
-  createSwychrPayment: (payload: { amount: number; currency: string; email: string; phone: string; name: string; method: "mobile_money" | "card" }) =>
+  createSwychrPayment: (payload: { amount: number; currency: string; email: string; phone: string; name: string; method: "mobile_money" | "card"; userId: string; returnUrl: string }) =>
     api<{ payment_url?: string; url?: string }>(`/payments/swychr/create`, { method: "POST", body: JSON.stringify(payload) }),
 };
 
