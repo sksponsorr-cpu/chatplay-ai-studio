@@ -128,3 +128,41 @@ export async function saveAntiSpam(settings: AntiSpam) {
   const { error } = await client().from("antispam_settings").upsert({ user_id: id, settings, updated_at: new Date().toISOString() });
   fail("enregistrement anti-spam", error);
 }
+/* ---------- Conversations / Messages ---------- */
+export type ConversationRow = {
+  id: string;
+  contact_phone: string;
+  contact_name: string | null;
+  last_message: string | null;
+  last_message_at: string;
+  unread_count: number;
+};
+
+export type MessageRow = {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
+export async function listConversations(): Promise<ConversationRow[]> {
+  const id = await uid();
+  const { data, error } = await client()
+    .from("conversations")
+    .select("id, contact_phone, contact_name, last_message, last_message_at, unread_count")
+    .eq("user_id", id)
+    .order("last_message_at", { ascending: false });
+  fail("lecture des conversations", error);
+  return (data ?? []) as ConversationRow[];
+}
+
+export async function listMessages(conversationId: string): Promise<MessageRow[]> {
+  const { data, error } = await client()
+    .from("messages")
+    .select("id, conversation_id, role, content, created_at")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true });
+  fail("lecture des messages", error);
+  return (data ?? []) as MessageRow[];
+}
