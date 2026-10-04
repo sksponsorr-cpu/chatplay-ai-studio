@@ -74,7 +74,20 @@ export function useWhatsAppPairing() {
     setError("");
     try {
       const { error: fnErr } = await client().functions.invoke("whatsapp-connect-", { body: {} });
-      if (fnErr) throw new Error(`connexion WhatsApp : ${fnErr.message}`);
+      if (fnErr) {
+        let code = "";
+        try {
+          const ctx = (fnErr as { context?: Response }).context;
+          const body = ctx ? await ctx.clone().json() : null;
+          code = body?.error ?? "";
+        } catch { /* body not JSON */ }
+        if (code === "db_error") {
+          throw new Error(
+            "le serveur n'a pas pu enregistrer la connexion dans la base (table whatsapp_connections absente ou mal configurée).",
+          );
+        }
+        throw new Error(`connexion WhatsApp : ${code || fnErr.message}`);
+      }
       // The function writes the row; refresh immediately in case realtime is slow.
       await load();
     } catch (e) {
