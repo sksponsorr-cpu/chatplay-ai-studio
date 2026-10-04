@@ -166,3 +166,65 @@ export async function listMessages(conversationId: string): Promise<MessageRow[]
   fail("lecture des messages", error);
   return (data ?? []) as MessageRow[];
 }
+
+/* ---------- Agent Configuration (par agent) ---------- */
+export type AgentConfig = {
+  id: string;
+  name: string;
+  instructions: string;
+  prompt: string | null;
+  model: string;
+  tone: string;
+  voice_enabled: boolean;
+  voice: string;
+  status: "online" | "draft";
+};
+
+export async function getAgent(agentId: string): Promise<AgentConfig | null> {
+  const id = await uid();
+  const { data, error } = await client()
+    .from("agents")
+    .select("id, name, instructions, prompt, model, tone, voice_enabled, voice, status")
+    .eq("id", agentId)
+    .eq("user_id", id)
+    .maybeSingle();
+  fail("lecture de l'agent", error);
+  return data as AgentConfig | null;
+}
+
+export async function saveAgentConfig(
+  agentId: string,
+  cfg: { model: string; tone: string; prompt: string; instructions?: string; name?: string },
+) {
+  const id = await uid();
+  const { error } = await client()
+    .from("agents")
+    .update({
+      model: cfg.model,
+      tone: cfg.tone,
+      prompt: cfg.prompt,
+      ...(cfg.instructions !== undefined ? { instructions: cfg.instructions } : {}),
+      ...(cfg.name !== undefined ? { name: cfg.name } : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", agentId)
+    .eq("user_id", id);
+  fail("enregistrement de l'agent", error);
+}
+
+/* ---------- WhatsApp pairing (par agent) ---------- */
+export async function getWaSessionForAgent(agentId: string): Promise<WaSession | null> {
+  const { data, error } = await client()
+    .from("whatsapp_connections")
+    .select("status, qr_code, phone_number, updated_at")
+    .eq("agent_id", agentId)
+    .maybeSingle();
+  fail("lecture de la session WhatsApp", error);
+  if (!data) return null;
+  return {
+    status: data.status,
+    qr: data.qr_code,
+    phone: data.phone_number,
+    updated_at: data.updated_at,
+  } as WaSession;
+}
