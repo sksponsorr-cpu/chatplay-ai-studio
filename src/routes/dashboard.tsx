@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Plus, QrCode, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { Bot, Plus, QrCode, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle, Sparkles, FlaskConical, User } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Logo } from "@/components/Logo";
 import { AuthGate } from "@/components/AuthGate";
@@ -30,6 +30,7 @@ const SUB_LABEL: Record<Subscription["status"], string> = {
 };
 
 function Dashboard() {
+  const nav = useNavigate();
   const [name, setName] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [sub, setSub] = useState<Subscription | null>(null);
@@ -51,7 +52,7 @@ function Dashboard() {
   useEffect(() => { load(); }, [load]);
 
   const saveAgent = async (a: Agent) => {
-    await upsertAgent(a);        // Supabase = source of truth
+    await upsertAgent(a);
     setAgents((list) => (list.some((x) => x.id === a.id) ? list.map((x) => (x.id === a.id ? a : x)) : [a, ...list]));
     setEditing(null);
   };
@@ -61,7 +62,24 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5">
-      <div className="flex items-center justify-between"><Logo /><span className="grid h-9 w-9 place-items-center rounded-full bg-accent font-bold text-accent-foreground">{(name || "U").charAt(0).toUpperCase()}</span></div>
+      <div className="flex items-center justify-between">
+        <Logo />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => nav({ to: "/test" })}
+            className="flex items-center gap-2 rounded-full border border-primary/30 bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground hover:opacity-80"
+          >
+            <FlaskConical className="h-4 w-4" /> Tester l'IA
+          </button>
+          <button
+            onClick={() => nav({ to: "/profil" })}
+            className="grid h-9 w-9 place-items-center rounded-full bg-accent font-bold text-accent-foreground hover:opacity-80"
+            aria-label="Profil"
+          >
+            {(name || "U").charAt(0).toUpperCase()}
+          </button>
+        </div>
+      </div>
 
       <h1 className="mt-8 text-3xl font-bold">Content de vous revoir{name ? `, ${name}` : ""} 👋</h1>
       <p className="mt-1 text-muted-foreground">Voici l'état de vos agents aujourd'hui.</p>
@@ -91,12 +109,17 @@ function Dashboard() {
       </div>
 
       <div className="mt-6">
-        {tab === "studio" && (editing ? <Studio agent={editing} onSave={saveAgent} onCancel={() => setEditing(null)} /> : (
+        {tab === "studio" && (
           <div className="space-y-3">
-            <button className="btn-neon w-full sm:w-auto" onClick={() => setEditing(newAgent())}><Plus className="h-5 w-5" /> Créer un agent</button>
+            <button
+              className="btn-neon w-full sm:w-auto"
+              onClick={() => nav({ to: "/configuration" })}
+            >
+              <Plus className="h-5 w-5" /> Créer un agent
+            </button>
             {agents.length === 0 && <div className="glass p-8 text-center text-muted-foreground">Aucun agent pour l'instant. Créez votre premier agent IA.</div>}
             {agents.map((a) => (
-              <button key={a.id} onClick={() => setEditing(a)} className="glass flex w-full items-center gap-3 p-4 text-left">
+              <button key={a.id} onClick={() => nav({ to: "/configuration" })} className="glass flex w-full items-center gap-3 p-4 text-left">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary"><Bot className="h-5 w-5" /></span>
                 <div className="min-w-0 flex-1"><p className="truncate font-semibold">{a.name || "Sans nom"}</p><p className="truncate text-sm text-muted-foreground">{a.instructions || "Aucune instruction"}</p></div>
                 {a.voice_enabled && <Mic className="h-4 w-4 shrink-0 text-primary" />}
@@ -104,7 +127,7 @@ function Dashboard() {
               </button>
             ))}
           </div>
-        ))}
+        )}
         {tab === "whatsapp" && <Pairing />}
         {tab === "antispam" && <AntiSpam />}
       </div>
@@ -133,44 +156,6 @@ function Notice({ kind, children }: { kind: "error" | "success" | "info"; childr
 }
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Erreur inconnue");
-
-function Studio({ agent, onSave, onCancel }: { agent: Agent; onSave: (a: Agent) => Promise<void>; onCancel: () => void }) {
-  const [a, setA] = useState(agent);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const submit = async () => {
-    setSaving(true); setError("");
-    try { await onSave(a); } catch (e) { setError(errMsg(e)); } finally { setSaving(false); }
-  };
-  return (
-    <div className="glass space-y-5 p-5">
-      <h2 className="text-xl font-bold">Studio de l'agent</h2>
-      <fieldset disabled={saving} className="space-y-5">
-      <div><label className="text-sm font-semibold">Nom de l'agent</label><input className="field mt-2" value={a.name} onChange={(e) => setA({ ...a, name: e.target.value })} placeholder="Ex : Alexia, conseillère boutique" /></div>
-      <div><label className="text-sm font-semibold">Instructions</label><textarea rows={6} className="field mt-2" value={a.instructions} onChange={(e) => setA({ ...a, instructions: e.target.value })} placeholder="Tu es l'assistante de ma boutique. Réponds avec chaleur, propose nos tarifs…" /></div>
-      <div className="flex items-center justify-between gap-4 rounded-xl bg-secondary p-4">
-        <div className="min-w-0"><p className="flex items-center gap-2 font-semibold"><Mic className="h-4 w-4 text-primary" /> Notes vocales ElevenLabs</p><p className="text-sm text-muted-foreground">L'agent peut répondre en audio réaliste.</p></div>
-        <Toggle label="Notes vocales" on={a.voice_enabled} onChange={(v) => setA({ ...a, voice_enabled: v })} />
-      </div>
-      {a.voice_enabled && (
-        <div className="flex flex-wrap gap-2">{VOICES.map((v) => <button key={v} data-active={a.voice === v} onClick={() => setA({ ...a, voice: v })} className="option-card !rounded-full !px-4 !py-2 text-sm font-semibold">{v}</button>)}</div>
-      )}
-      <div className="flex items-center justify-between gap-4 rounded-xl bg-secondary p-4">
-        <p className="font-semibold">Mettre en ligne</p>
-        <Toggle label="En ligne" on={a.status === "online"} onChange={(v) => setA({ ...a, status: v ? "online" : "draft" })} />
-      </div>
-      </fieldset>
-      {saving && <Notice kind="info">Enregistrement de l'agent sur le serveur…</Notice>}
-      {error && <Notice kind="error">Impossible d'enregistrer l'agent : {error}</Notice>}
-      <div className="flex gap-3">
-        <button className="btn-ghost" onClick={onCancel} disabled={saving}>Annuler</button>
-        <button className="btn-neon flex-1" disabled={!a.name.trim() || saving} onClick={submit}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {saving ? "Enregistrement…" : "Enregistrer"}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function Pairing() {
   const w = useWhatsAppPairing();
@@ -274,4 +259,4 @@ function Range({ label, value, min, max, onChange }: { label: string; value: num
       <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(+e.target.value)} className="mt-2 w-full accent-primary" />
     </div>
   );
-}
+            }
