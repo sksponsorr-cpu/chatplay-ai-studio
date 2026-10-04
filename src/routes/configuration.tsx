@@ -1,114 +1,192 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Save, CheckCircle2, Loader2, TriangleAlert, Database, KeyRound } from "lucide-react";
+import {
+  Save, CheckCircle2, Sparkles, MessageSquare, Plug, BookOpen, Package, Settings2, Bot,
+} from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { getConfig, saveConfig, type AppConfig } from "@/lib/config";
 
 export const Route = createFileRoute("/configuration")({
   head: () => ({
     meta: [
-      { title: "Configuration — Chatplay" },
-      { name: "description", content: "Renseignez les connexions Supabase de Chatplay." },
-      { property: "og:title", content: "Configuration — Chatplay" },
-      { property: "og:description", content: "Connectez votre base de données." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { title: "Configuration de l'Agent — Chatplay" },
+      { name: "description", content: "Configurez votre agent IA WhatsApp." },
     ],
   }),
   component: Configuration,
 });
 
-const FIELDS = [
-  {
-    key: "supabaseUrl" as const,
-    label: "URL Supabase",
-    icon: Database,
-    hint: "Dans Supabase : Settings → API → Project URL (https://xxxx.supabase.co)",
-    validate: (v: string) => /^https:\/\/[^\s]+\.[^\s]+$/.test(v) || "Doit être une adresse commençant par https://",
-  },
-  {
-    key: "supabaseAnonKey" as const,
-    label: "Clé publique Supabase (anon)",
-    icon: KeyRound,
-    hint: "Dans Supabase : Settings → API — clé « anon / publishable » (sb_publishable_… ou eyJ…)",
-    validate: (v: string) => (v.trim().length >= 20 ? true : "La clé semble trop courte — copiez-la depuis Settings → API"),
-  },
+type Tab = "prompt" | "connexions" | "connaissances" | "produits" | "parametres";
+
+const MODELS = [
+  { id: "gemini-2.0-flash", name: "Gemini Flash", badge: "Gratuit", badgeColor: "bg-green-600", icon: "⚡" },
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Recommandé", badgeColor: "bg-blue-600", icon: "✨" },
+  { id: "google/gemini-2.5-pro", name: "Gemini Pro", badge: "PRO", badgeColor: "bg-orange-500", icon: "🧠" },
+  { id: "openai/gpt-4o-mini", name: "GPT-4o mini", badge: "Rapide", badgeColor: "bg-purple-600", icon: "🤖" },
 ];
 
+const TONES = [
+  { id: "normal", name: "Normal", desc: "Ton équilibré et naturel" },
+  { id: "amical", name: "Amical", desc: "Chaleureux et détendu" },
+  { id: "professionnel", name: "Professionnel", desc: "Formel et précis" },
+  { id: "commercial", name: "Commercial", desc: "Persuasif et vendeur" },
+];
+
+const DEFAULT_PROMPT = `# PROMPT AGENT SERVICE CLIENT E-COMMERCE
+
+## DESCRIPTION DU RÔLE
+Tu es Customer Support, assistant(e) service client pour une boutique en ligne. Tu aides les clients de façon amicale et naturelle.
+
+## PERSONNALITÉ
+- **Naturelle et Spontanée** : Parle fluidement, utilise des expressions courantes.
+- **Empathique et Chaleureuse** : Montre de la compréhension.
+- **Professionnelle mais Accessible** : Polie, jamais robotique.
+
+## RÈGLES
+1. Réponds toujours en français (sauf si le client écrit dans une autre langue).
+2. Sois concis : 2-4 phrases maximum.
+3. Pas de markdown, pas de listes à puces.
+4. Si tu ne sais pas, propose de transférer à un humain.`;
+
 function Configuration() {
-  const [values, setValues] = useState<AppConfig>(() => ({ supabaseUrl: "", supabaseAnonKey: "", ...getConfig() }));
-  const [errors, setErrors] = useState<Partial<Record<keyof AppConfig, string>>>({});
+  const [tab, setTab] = useState<Tab>("prompt");
+  const [model, setModel] = useState(MODELS[0].id);
+  const [tone, setTone] = useState("normal");
+  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [saved, setSaved] = useState(false);
 
-  const set = (k: keyof AppConfig, v: string) => {
-    setValues((prev) => ({ ...prev, [k]: v }));
-    setErrors((prev) => ({ ...prev, [k]: undefined }));
-    setSaved(false);
+  const save = () => {
+    localStorage.setItem("chatplay.agent", JSON.stringify({ model, tone, prompt }));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   };
 
-  const save = () => {
-    const next: Partial<Record<keyof AppConfig, string>> = {};
-    for (const f of FIELDS) {
-      const res = f.validate(values[f.key]);
-      if (res !== true) next[f.key] = res;
-    }
-    setErrors(next);
-    if (Object.keys(next).length > 0) return;
-    saveConfig(values);
-    setSaved(true);
-    // Reload so the Supabase client is rebuilt with the new values.
-    setTimeout(() => window.location.reload(), 700);
-  };
+  const tabs: { id: Tab; label: string; icon: any }[] = [
+    { id: "prompt", label: "Prompt", icon: MessageSquare },
+    { id: "connexions", label: "Connexions", icon: Plug },
+    { id: "connaissances", label: "Base de connaissances", icon: BookOpen },
+    { id: "produits", label: "Produits et services", icon: Package },
+    { id: "parametres", label: "Paramètres", icon: Settings2 },
+  ];
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-6">
-      <div className="flex items-center justify-between">
-        <Logo />
-        <Link to="/dashboard" className="btn-ghost text-sm">Tableau de bord</Link>
+    <div className="min-h-screen bg-neutral-950 text-white">
+      {/* Header */}
+      <div className="border-b border-neutral-800 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Logo />
+          <span className="text-sm text-neutral-400 hidden sm:inline">Configuration de l'Agent</span>
+        </div>
+        <Link to="/dashboard" className="text-sm text-green-400 hover:text-green-300">
+          Tableau de bord →
+        </Link>
       </div>
 
-      <h1 className="mt-8 text-2xl font-bold">Configuration des connexions</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Renseignez vos identifiants une seule fois : ils sont enregistrés dans ce navigateur et utilisés par toute l'application.
-      </p>
+      <div className="max-w-3xl mx-auto px-4 py-6">
+        {/* Tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-3 mb-6">
+          {tabs.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition ${
+                  active
+                    ? "bg-green-600 text-white"
+                    : "bg-neutral-900 text-neutral-400 hover:bg-neutral-800"
+                }`}
+              >
+                <Icon size={16} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="glass mt-6 space-y-5 p-5">
-        {FIELDS.map((f) => {
-          const Icon = f.icon;
-          const error = errors[f.key];
-          return (
-            <div key={f.key}>
-              <label htmlFor={f.key} className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
-                <Icon className="h-4 w-4 text-primary" /> {f.label}
-              </label>
-              <input
-                id={f.key}
-                type={f.key === "supabaseAnonKey" ? "password" : "url"}
-                autoComplete="off"
-                spellCheck={false}
-                className="field"
-                placeholder={f.key === "supabaseAnonKey" ? "sb_publishable_… ou eyJ…" : "https://…"}
-                value={values[f.key]}
-                onChange={(e) => set(f.key, e.target.value)}
-              />
-              {error ? (
-                <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-destructive"><TriangleAlert className="h-3.5 w-3.5" />{error}</p>
-              ) : (
-                <p className="mt-1.5 text-xs text-muted-foreground">{f.hint}</p>
-              )}
+        {/* Tab: Prompt */}
+        {tab === "prompt" && (
+          <div className="space-y-6">
+            {/* Modèle */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold">Modèle d'IA</label>
+                <span className="text-xs text-neutral-500">
+                  Prompt score <span className="text-green-400 font-bold">10</span>/10
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {MODELS.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setModel(m.id)}
+                    className={`text-left p-3 rounded-xl border transition ${
+                      model === m.id
+                        ? "border-green-500 bg-green-500/10"
+                        : "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sm">{m.icon} {m.name}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${m.badgeColor}`}>
+                        {m.badge}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          );
-        })}
 
-        <button className="btn-neon w-full" onClick={save} disabled={saved}>
-          {saved ? (<><CheckCircle2 className="h-5 w-5" /> Enregistré — rechargement…</>) : (<><Save className="h-5 w-5" /> Enregistrer et recharger</>)}
-        </button>
-        {saved && <p className="text-center text-xs text-success">Configuration enregistrée. La page se recharge pour l'appliquer.</p>}
+            {/* Style */}
+            <div>
+              <label className="text-sm font-semibold mb-3 block">Style de communication</label>
+              <select
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-green-500"
+              >
+                {TONES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} — {t.desc}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Prompt editor */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-semibold">Prompt de l'agent</label>
+                <span className="text-xs text-neutral-500">
+                  {prompt.length} / 12000 caractères
+                </span>
+              </div>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value.slice(0, 12000))}
+                rows={16}
+                className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 font-mono text-sm outline-none focus:border-green-500 resize-none"
+              />
+            </div>
+
+            {/* Save */}
+            <button
+              onClick={save}
+              className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 font-semibold flex items-center justify-center gap-2 transition"
+            >
+              {saved ? (<><CheckCircle2 size={18} /> Enregistré !</>) : (<><Save size={18} /> Enregistrer</>)}
+            </button>
+          </div>
+        )}
+
+        {/* Autres onglets */}
+        {tab !== "prompt" && (
+          <div className="text-center py-20 text-neutral-500">
+            <Bot size={48} className="mx-auto mb-4 opacity-30" />
+            <p>Cette section sera bientôt disponible.</p>
+          </div>
+        )}
       </div>
-
-      <p className="mt-4 text-xs text-muted-foreground">
-        Ces valeurs sont publiques (clé « anon » Supabase et adresse de serveur) — elles ne contiennent aucun secret.
-      </p>
     </div>
   );
-}
+  }
