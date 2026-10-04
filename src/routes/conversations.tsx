@@ -1,8 +1,9 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Search, MessageSquare, Bot, User, ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { AuthGate } from "@/components/AuthGate";
+import { BottomNav } from "@/components/BottomNav";
 import { listConversations, type ConversationRow } from "@/lib/db";
 
 export const Route = createFileRoute("/conversations")({
@@ -13,7 +14,6 @@ export const Route = createFileRoute("/conversations")({
 });
 
 function ConversationsPage() {
-  const nav = useNavigate();
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -63,7 +63,7 @@ function ConversationsPage() {
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-green-600/20 text-green-500">
             <Bot className="h-5 w-5" />
           </span>
-          <span className="flex-1 text-left font-semibold">Customer Support</span>
+          <span className="flex-1 text-left font-semibold">Service client</span>
         </div>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
@@ -118,7 +118,7 @@ function ConversationsPage() {
             <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-30" />
             <p className="font-semibold text-neutral-400 mb-1">Aucune conversation</p>
             <p className="text-sm">
-              Envoie un message WhatsApp à ton bot pour voir apparaître les conversations ici.
+              Envoyez un message WhatsApp à votre bot pour voir apparaître les conversations ici.
             </p>
           </div>
         )}
@@ -126,25 +126,16 @@ function ConversationsPage() {
         {!loading && !error && filtered.length > 0 && (
           <div className="space-y-2">
             {filtered.map((c) => (
-              <div
-                key={c.id}
-                className="w-full flex items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-4"
-              >
+              <div key={c.id} className="w-full flex items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-green-600/20 text-green-500 font-bold">
                   {(c.contact_name || c.contact_phone).charAt(0).toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex justify-between gap-2">
-                    <span className="font-semibold truncate">
-                      {c.contact_name || c.contact_phone}
-                    </span>
-                    <span className="text-xs text-neutral-500 shrink-0">
-                      {formatTime(c.last_message_at)}
-                    </span>
+                    <span className="font-semibold truncate">{c.contact_name || c.contact_phone}</span>
+                    <span className="text-xs text-neutral-500 shrink-0">{formatTime(c.last_message_at)}</span>
                   </div>
-                  <p className="text-sm text-neutral-400 truncate">
-                    {c.last_message || "…"}
-                  </p>
+                  <p className="text-sm text-neutral-400 truncate">{c.last_message || "…"}</p>
                 </div>
                 {c.unread_count > 0 && (
                   <span className="shrink-0 grid h-5 min-w-5 px-1.5 place-items-center rounded-full bg-green-600 text-xs font-bold">
@@ -157,23 +148,7 @@ function ConversationsPage() {
         )}
       </div>
 
-      {/* Navigation basse */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur">
-        <div className="max-w-3xl mx-auto flex justify-around py-2">
-          <Link to="/dashboard" className="flex flex-col items-center gap-0.5 px-4 py-1 text-neutral-500 hover:text-white">
-            <Bot className="h-5 w-5" />
-            <span className="text-[10px]">Dashboard</span>
-          </Link>
-          <Link to="/configuration" className="flex flex-col items-center gap-0.5 px-4 py-1 text-neutral-500 hover:text-white">
-            <User className="h-5 w-5" />
-            <span className="text-[10px]">Agents</span>
-          </Link>
-          <Link to="/conversations" className="flex flex-col items-center gap-0.5 px-4 py-1 text-green-500">
-            <MessageSquare className="h-5 w-5" />
-            <span className="text-[10px]">Conversations</span>
-          </Link>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
-            }
+}
