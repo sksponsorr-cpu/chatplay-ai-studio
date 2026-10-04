@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { LogOut, User, Mail, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { AuthGate } from "@/components/AuthGate";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/profil")({
   head: () => ({
@@ -25,8 +25,10 @@ function ProfilPage() {
 
   useEffect(() => {
     const load = async () => {
+      const client = getSupabase();
+      if (!client) { setLoading(false); return; }
       try {
-        const { data } = await supabase.auth.getUser();
+        const { data } = await client.auth.getUser();
         if (data?.user) {
           setEmail(data.user.email || "");
           setName(
@@ -43,14 +45,17 @@ function ProfilPage() {
   }, []);
 
   const saveName = async () => {
-    await supabase.auth.updateUser({ data: { name } });
+    const client = getSupabase();
+    if (!client) return;
+    await client.auth.updateUser({ data: { name } });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
 
   const logout = async () => {
     setLoggingOut(true);
-    await supabase.auth.signOut();
+    const client = getSupabase();
+    if (client) await client.auth.signOut();
     nav({ to: "/auth" });
   };
 
