@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Plus, QrCode, RefreshCw, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { Bot, Plus, QrCode, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Logo } from "@/components/Logo";
 import { AuthGate } from "@/components/AuthGate";
 import { useWhatsAppPairing } from "@/lib/useWhatsAppPairing";
@@ -173,26 +174,29 @@ function Studio({ agent, onSave, onCancel }: { agent: Agent; onSave: (a: Agent) 
 
 function Pairing() {
   const w = useWhatsAppPairing();
+  const connected = w.status === "connected";
   return (
     <div className="glass grid gap-6 p-5 md:grid-cols-2">
       <div className="space-y-4">
         <h2 className="text-xl font-bold">Appairer WhatsApp</h2>
         <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-          <li>Ouvrez WhatsApp sur votre téléphone</li><li>Menu → Appareils connectés</li><li>Scannez le QR code ci-contre</li>
+          <li>Ouvrez WhatsApp sur votre téléphone</li><li>Appareils connectés → Connecter un appareil</li><li>Scannez le QR code ci-contre</li>
         </ol>
-        <p className="text-sm">Statut : {w.loading ? <span className="font-bold text-muted-foreground">Connexion…</span>
-          : w.status === "connected" ? <span className="font-bold text-success"><CheckCircle2 className="mr-1 inline h-4 w-4" />Connecté{w.phone ? ` · ${w.phone}` : ""}</span>
+        <p className="text-sm">Statut : {w.loading ? <span className="font-bold text-muted-foreground">Chargement…</span>
+          : connected ? <span className="font-bold text-success"><CheckCircle2 className="mr-1 inline h-4 w-4" />WhatsApp connecté{w.phone ? ` · ${w.phone}` : ""}</span>
           : w.error ? <span className="font-bold text-destructive">Erreur de connexion</span>
-          : w.qr ? <span className="font-bold text-primary">En attente du scan…</span>
-          : <span className="font-bold text-muted-foreground">Génération du QR code…</span>}</p>
-        {w.error && <Notice kind="error">Impossible de récupérer le QR code : {w.error}</Notice>}
+          : w.qr ? <span className="font-bold text-primary">Scannez avec WhatsApp &gt; Appareils connectés &gt; Connecter un appareil</span>
+          : w.status === "pending" || w.connecting ? <span className="font-bold text-muted-foreground">Génération du QR code…</span>
+          : <span className="font-bold text-muted-foreground">Non connecté</span>}</p>
+        {w.error && <Notice kind="error">Impossible de connecter WhatsApp : {w.error}</Notice>}
         <div className="flex flex-wrap gap-2">
-          {w.status !== "connected" && (
-            <button className="btn-ghost" onClick={() => w.refresh(true)} disabled={w.refreshing}>
-              <RefreshCw className={`h-4 w-4 ${w.refreshing ? "animate-spin" : ""}`} /> {w.refreshing ? "Actualisation…" : "Nouveau QR code"}
+          {!connected && (
+            <button className="btn-neon" onClick={w.connect} disabled={w.connecting}>
+              {w.connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+              {w.connecting ? "Connexion…" : w.status === "disconnected" || w.error ? "Réessayer" : "Connecter WhatsApp"}
             </button>
           )}
-          {w.hasProblem && (
+          {w.hasProblem && !w.connecting && (
             <button className="btn-ghost" onClick={w.diagnose} disabled={w.diagnosing}>
               {w.diagnosing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {w.diagnosing ? "Analyse…" : "Diagnostiquer avec l'IA"}
             </button>
@@ -201,9 +205,9 @@ function Pairing() {
         {w.diagnosis && <div className="whitespace-pre-line rounded-xl border border-primary/30 bg-accent p-4 text-sm">{w.diagnosis}</div>}
       </div>
       <div className="grid aspect-square w-full max-w-[280px] place-items-center justify-self-center rounded-2xl bg-foreground p-3">
-        {w.status === "connected" ? <CheckCircle2 className="h-20 w-20 text-success" />
-          : w.loading || (!w.qr && !w.error) ? <Loader2 className="h-12 w-12 animate-spin text-background opacity-60" />
-          : w.qr ? <img src={w.qr} alt="QR code WhatsApp" className={`h-full w-full ${w.error ? "opacity-30" : ""}`} />
+        {connected ? <CheckCircle2 className="h-20 w-20 text-success" />
+          : w.qr ? <QRCodeSVG value={w.qr} size={256} className="h-full w-full" />
+          : w.loading || w.connecting || w.status === "pending" ? <Loader2 className="h-12 w-12 animate-spin text-background opacity-60" />
           : <QrCode className="h-16 w-16 text-background opacity-40" />}
       </div>
     </div>
