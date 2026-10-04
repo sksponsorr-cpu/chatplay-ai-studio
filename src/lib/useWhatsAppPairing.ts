@@ -83,7 +83,7 @@ export function useWhatsAppPairing() {
         } catch { /* body not JSON */ }
         if (code === "db_error") {
           throw new Error(
-            "le serveur n'a pas pu enregistrer la connexion dans la base (table whatsapp_connections absente ou mal configurée).",
+            "la fonction « whatsapp-connect- » de Supabase a échoué en interne (db_error). Son code doit être corrigé dans Supabase → Edge Functions.",
           );
         }
         throw new Error(`connexion WhatsApp : ${code || fnErr.message}`);
