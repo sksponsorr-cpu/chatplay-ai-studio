@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Send, Bot, Settings } from "lucide-react";
+import { BottomNav } from "@/components/BottomNav";
 import { sendTestMessage } from "@/lib/test-api";
 
 export const Route = createFileRoute("/test")({
@@ -33,8 +34,7 @@ function TestPage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
-      {/* Header */}
+    <div className="min-h-screen bg-neutral-950 text-white flex flex-col pb-20">
       <div className="border-b border-neutral-800 p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
@@ -55,7 +55,6 @@ function TestPage() {
         </select>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <div className="text-center text-neutral-500 mt-20">
@@ -81,7 +80,6 @@ function TestPage() {
         )}
       </div>
 
-      {/* Input */}
       <div className="border-t border-neutral-800 p-3 flex gap-2">
         <input
           value={input}
@@ -99,21 +97,7 @@ function TestPage() {
         </button>
       </div>
 
-      {/* Footer nav */}
-      <div className="border-t border-neutral-800 p-3 flex items-center gap-2">
-        <a
-          href="/dashboard"
-          className="flex-1 text-center py-2 rounded-xl bg-neutral-900 text-sm"
-        >
-          Accueil
-        </a>
-        <a
-          href="/configuration"
-          className="flex-1 text-center py-2 rounded-xl bg-neutral-900 text-sm flex items-center justify-center gap-2"
-        >
-          <Settings size={14} /> Configuration
-        </a>
-      </div>
+      <BottomNav />
     </div>
   );
-            }
+}
