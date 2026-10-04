@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Plus, QrCode, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -27,6 +27,7 @@ const SUB_LABEL: Record<Subscription["status"], string> = {
 };
 
 function Dashboard() {
+  const nav = useNavigate();
   const [name, setName] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [sub, setSub] = useState<Subscription | null>(null);
@@ -58,7 +59,16 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 pb-24">
-      <div className="flex items-center justify-between"><Logo /><span className="grid h-9 w-9 place-items-center rounded-full bg-accent font-bold text-accent-foreground">{(name || "U").charAt(0).toUpperCase()}</span></div>
+      <div className="flex items-center justify-between">
+        <Logo />
+        <button
+          onClick={() => nav({ to: "/profil" })}
+          className="grid h-9 w-9 place-items-center rounded-full bg-accent font-bold text-accent-foreground hover:opacity-80"
+          aria-label="Profil"
+        >
+          {(name || "U").charAt(0).toUpperCase()}
+        </button>
+      </div>
 
       <h1 className="mt-8 text-3xl font-bold">Content de vous revoir{name ? `, ${name}` : ""} 👋</h1>
       <p className="mt-1 text-muted-foreground">Voici l'état de vos agents aujourd'hui.</p>
@@ -93,7 +103,7 @@ function Dashboard() {
             <button className="btn-neon w-full sm:w-auto" onClick={() => setEditing(newAgent())}><Plus className="h-5 w-5" /> Créer un agent</button>
             {agents.length === 0 && <div className="glass p-8 text-center text-muted-foreground">Aucun agent pour l'instant. Créez votre premier agent IA.</div>}
             {agents.map((a) => (
-              <button key={a.id} onClick={() => setEditing(a)} className="glass flex w-full items-center gap-3 p-4 text-left">
+              <button key={a.id} onClick={() => nav({ to: "/configuration", search: { agent: a.id } })} className="glass flex w-full items-center gap-3 p-4 text-left">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary"><Bot className="h-5 w-5" /></span>
                 <div className="min-w-0 flex-1"><p className="truncate font-semibold">{a.name || "Sans nom"}</p><p className="truncate text-sm text-muted-foreground">{a.instructions || "Aucune instruction"}</p></div>
                 {a.voice_enabled && <Mic className="h-4 w-4 shrink-0 text-primary" />}
@@ -146,7 +156,7 @@ function Studio({ agent, onSave, onCancel }: { agent: Agent; onSave: (a: Agent) 
       <h2 className="text-xl font-bold">Studio de l'agent</h2>
       <fieldset disabled={saving} className="space-y-5">
       <div><label className="text-sm font-semibold">Nom de l'agent</label><input className="field mt-2" value={a.name} onChange={(e) => setA({ ...a, name: e.target.value })} placeholder="Ex : Alexia, conseillère boutique" /></div>
-      <div><label className="text-sm font-semibold">Instructions</label><textarea rows={6} className="field mt-2" value={a.instructions} onChange={(e) => setA({ ...a, instructions: e.target.value })} placeholder="Tu es l'assistante de ma boutique. Réponds avec chaleur, propose nos tarifs…" /></div>
+      <div><label className="text-sm font-semibold">Instructions</label><textarea rows={6} className="field mt-2" value={a.instructions} onChange={(e) => setA({ ...a, instructions: e.target.value })} placeholder="Tu es l'assistante de ma boutique…" /></div>
       <div className="flex items-center justify-between gap-4 rounded-xl bg-secondary p-4">
         <div className="min-w-0"><p className="flex items-center gap-2 font-semibold"><Mic className="h-4 w-4 text-primary" /> Notes vocales ElevenLabs</p><p className="text-sm text-muted-foreground">L'agent peut répondre en audio réaliste.</p></div>
         <Toggle label="Notes vocales" on={a.voice_enabled} onChange={(v) => setA({ ...a, voice_enabled: v })} />
@@ -273,4 +283,4 @@ function Range({ label, value, min, max, onChange }: { label: string; value: num
       <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(+e.target.value)} className="mt-2 w-full accent-primary" />
     </div>
   );
-      }
+                }
