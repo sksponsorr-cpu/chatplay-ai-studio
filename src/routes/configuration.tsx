@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  Save, CheckCircle2, Sparkles, MessageSquare, Plug, BookOpen, Package, Settings2, Bot,
+  Save, CheckCircle2, MessageSquare, Plug, BookOpen, Package, Settings2, Bot,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { BottomNav } from "@/components/BottomNav";
 
 export const Route = createFileRoute("/configuration")({
   head: () => ({
@@ -69,8 +70,7 @@ function Configuration() {
   ];
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white">
-      {/* Header */}
+    <div className="min-h-screen bg-neutral-950 text-white pb-24">
       <div className="border-b border-neutral-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Logo />
@@ -82,7 +82,6 @@ function Configuration() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6">
-        {/* Tabs */}
         <div className="flex gap-2 overflow-x-auto pb-3 mb-6">
           {tabs.map((t) => {
             const Icon = t.icon;
@@ -104,10 +103,8 @@ function Configuration() {
           })}
         </div>
 
-        {/* Tab: Prompt */}
         {tab === "prompt" && (
           <div className="space-y-6">
-            {/* Modèle */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="text-sm font-semibold">Modèle d'IA</label>
@@ -137,7 +134,6 @@ function Configuration() {
               </div>
             </div>
 
-            {/* Style */}
             <div>
               <label className="text-sm font-semibold mb-3 block">Style de communication</label>
               <select
@@ -153,7 +149,6 @@ function Configuration() {
               </select>
             </div>
 
-            {/* Prompt editor */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-semibold">Prompt de l'agent</label>
@@ -169,7 +164,6 @@ function Configuration() {
               />
             </div>
 
-            {/* Save */}
             <button
               onClick={save}
               className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 font-semibold flex items-center justify-center gap-2 transition"
@@ -179,7 +173,6 @@ function Configuration() {
           </div>
         )}
 
-        {/* Autres onglets */}
         {tab !== "prompt" && (
           <div className="text-center py-20 text-neutral-500">
             <Bot size={48} className="mx-auto mb-4 opacity-30" />
@@ -187,6 +180,8 @@ function Configuration() {
           </div>
         )}
       </div>
+
+      <BottomNav />
     </div>
   );
-  }
+}
