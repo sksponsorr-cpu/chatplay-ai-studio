@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { LogOut, User, Mail, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { AuthGate } from "@/components/AuthGate";
+import { BottomNav } from "@/components/BottomNav";
 import { getSupabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/profil")({
@@ -68,7 +69,7 @@ function ProfilPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white">
+    <div className="min-h-screen bg-neutral-950 text-white pb-24">
       <div className="border-b border-neutral-800 px-4 py-3 flex items-center justify-between">
         <Logo />
         <Link to="/dashboard" className="text-sm text-green-400 hover:text-green-300 flex items-center gap-1">
@@ -129,6 +130,8 @@ function ProfilPage() {
           {loggingOut ? "Déconnexion…" : "Se déconnecter"}
         </button>
       </div>
+
+      <BottomNav />
     </div>
   );
 }
