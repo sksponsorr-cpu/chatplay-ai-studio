@@ -1,49 +1,49 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { client, currentUser } from "./db";
-import { diagnoseWhatsApp } from "./diagnose.functions";
 
 export type WaConnection = {
   status: "pending" | "connected" | "disconnected";
   phone_number: string | null;
   qr_code: string | null;
-  user_id: string;
+  agent_id: string;
 };
 
-/** Reusable WhatsApp pairing: invokes the `whatsapp-connect-` Edge Function, then reads and
- *  live-syncs the user's `whatsapp_connections` row. The QR code is only ever displayed from
- *  the `qr_code` column — never generated locally. */
-export function useWhatsAppPairing() {
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string | undefined;
+const BACKEND_API_KEY = import.meta.env.VITE_BACKEND_API_KEY as string | undefined;
+
+/** Reusable WhatsApp pairing by agent. */
+export function useWhatsAppPairing(agentId?: string) {
   const [conn, setConn] = useState<WaConnection | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const [diagnosis, setDiagnosis] = useState("");
-  const [diagnosing, setDiagnosing] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const diagnoseFn = useServerFn(diagnoseWhatsApp);
 
   const load = useCallback(async () => {
+    if (!agentId) {
+      setLoading(false);
+      return null;
+    }
     const user = await currentUser();
     if (!user) throw new Error("vous n'êtes pas connecté");
     const { data, error: err } = await client()
       .from("whatsapp_connections")
-      .select("status, phone_number, qr_code, user_id")
-      .eq("user_id", user.id)
+      .select("status, phone_number, qr_code, agent_id")
+      .eq("agent_id", agentId)
       .maybeSingle();
     if (err) throw new Error(`lecture de la connexion WhatsApp : ${err.message}`);
     setConn((data as WaConnection | null) ?? null);
-    return user.id;
-  }, []);
+    return agentId;
+  }, [agentId]);
 
-  const subscribe = useCallback(async (userId: string) => {
+  const subscribe = useCallback(async (aid: string) => {
     channelRef.current?.unsubscribe();
     channelRef.current = client()
-      .channel(`wa-conn-${userId}`)
+      .channel(`wa-conn-${aid}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "whatsapp_connections", filter: `user_id=eq.${userId}` },
+        { event: "*", schema: "public", table: "whatsapp_connections", filter: `agent_id=eq.${aid}` },
         (p) => setConn(p.new as WaConnection),
       )
       .subscribe();
@@ -53,8 +53,8 @@ export function useWhatsAppPairing() {
     let active = true;
     (async () => {
       try {
-        const userId = await load();
-        if (active) await subscribe(userId);
+        const aid = await load();
+        if (active && aid) await subscribe(aid);
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : "Erreur inconnue");
       } finally {
@@ -68,61 +68,46 @@ export function useWhatsAppPairing() {
     };
   }, [load, subscribe]);
 
-  /** « Connecter WhatsApp » / « Réessayer » : asks the backend to start a session and write the QR. */
+  /** Demande au backend Railway de démarrer une session Baileys pour cet agent. */
   const connect = useCallback(async () => {
+    if (!agentId) {
+      setError("Aucun agent sélectionné.");
+      return;
+    }
+    if (!BACKEND_URL || !BACKEND_API_KEY) {
+      setError("Backend non configuré (VITE_BACKEND_URL / VITE_BACKEND_API_KEY).");
+      return;
+    }
     setConnecting(true);
     setError("");
     try {
-      const { error: fnErr } = await client().functions.invoke("whatsapp-connect-", { body: {} });
-      if (fnErr) {
-        let code = "";
-        try {
-          const ctx = (fnErr as { context?: Response }).context;
-          const body = ctx ? await ctx.clone().json() : null;
-          code = body?.error ?? "";
-        } catch { /* body not JSON */ }
-        if (code === "db_error") {
-          throw new Error(
-            "la fonction « whatsapp-connect- » de Supabase a échoué en interne (db_error). Son code doit être corrigé dans Supabase → Edge Functions.",
-          );
-        }
-        throw new Error(`connexion WhatsApp : ${code || fnErr.message}`);
+      const res = await fetch(`${BACKEND_URL}/sessions/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": BACKEND_API_KEY },
+        body: JSON.stringify({ session_id: agentId }),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Backend a répondu ${res.status} : ${txt || "erreur"}`);
       }
-      // The function writes the row; refresh immediately in case realtime is slow.
+      // Le backend écrit la ligne + le QR dans Supabase. Realtime mettra à jour.
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue");
     } finally {
       setConnecting(false);
     }
-  }, [load]);
-
-  const diagnose = useCallback(async () => {
-    setDiagnosing(true);
-    setDiagnosis("");
-    try {
-      const r = await diagnoseFn({
-        data: {
-          error: error || "QR code non reçu",
-          status: conn?.status ?? "aucune ligne",
-          context: conn?.qr_code ? "QR affiché mais non validé" : "aucun QR reçu",
-        },
-      });
-      setDiagnosis(r.message);
-    } catch {
-      setDiagnosis("Diagnostic indisponible pour le moment.");
-    } finally {
-      setDiagnosing(false);
-    }
-  }, [diagnoseFn, error, conn]);
+  }, [agentId, load]);
 
   const status = conn?.status ?? null;
   const qr = conn?.qr_code ?? "";
   const phone = conn?.phone_number ?? null;
-  // A pending session without a QR yet also counts as a problem worth diagnosing.
-  const stuck = !loading && status !== "connected" && !qr && !connecting;
+  const stuck = !loading && !!agentId && status !== "connected" && !qr && !connecting;
+
   return {
-    status, qr, phone, error, loading, connecting, connect, diagnose, diagnosis, diagnosing,
+    status, qr, phone, error, loading, connecting, connect,
+    diagnosis: "", diagnosing: false,
+    diagnose: async () => {},
     hasProblem: Boolean(error) || stuck || status === "disconnected",
   };
 }
