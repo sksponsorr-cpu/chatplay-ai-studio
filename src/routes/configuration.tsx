@@ -9,10 +9,18 @@ import { BottomNav } from "@/components/BottomNav";
 import { AuthGate } from "@/components/AuthGate";
 import { getAgent, saveAgentConfig, type AgentConfig } from "@/lib/db";
 import { useWhatsAppPairing } from "@/lib/useWhatsAppPairing";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/configuration")({
   head: () => ({
-    meta: [{ title: "Configuration de l'Agent — Chatplay" }],
+    meta: [
+      { title: "Configuration de l'Agent — Chatplay" },
+      { name: "description", content: "Configurez le comportement et la connexion WhatsApp de votre agent Chatplay." },
+      { property: "og:title", content: "Configuration de l'Agent — Chatplay" },
+      { property: "og:description", content: "Configurez le comportement et la connexion WhatsApp de votre agent Chatplay." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
   }),
   component: () => <AuthGate><Configuration /></AuthGate>,
 });
@@ -118,29 +126,31 @@ function Configuration() {
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-neutral-950 text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-green-500" />
+      <div className="grid min-h-screen place-items-center bg-background text-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white pb-24">
-      <div className="border-b border-neutral-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-background pb-24 text-foreground">
+      <div className="sticky top-0 z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
+        <div className="mx-auto grid max-w-3xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <Logo />
-          <span className="text-sm text-neutral-400 hidden sm:inline">
+          <span className="hidden truncate text-sm text-muted-foreground sm:inline">
             {agent ? `Agent : ${agent.name || "Sans nom"}` : "Configuration"}
           </span>
         </div>
-        <Link to="/dashboard" className="text-sm text-green-400 hover:text-green-300">
+        <Link to="/dashboard" className="shrink-0 text-sm font-semibold text-primary hover:opacity-80">
           Tableau de bord →
         </Link>
+        </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6">
         {loadError && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 p-4 flex items-start gap-2 mb-6">
+          <div className="mb-6 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-destructive">
             <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
             <div className="text-sm">{loadError}</div>
           </div>
@@ -148,7 +158,7 @@ function Configuration() {
 
         {!loadError && (
           <>
-            <div className="flex gap-2 overflow-x-auto pb-3 mb-6">
+            <div className="mb-6 flex gap-1 overflow-x-auto rounded-md border border-border bg-card p-2">
               {tabs.map((t) => {
                 const Icon = t.icon;
                 const active = tab === t.id;
@@ -156,8 +166,8 @@ function Configuration() {
                   <button
                     key={t.id}
                     onClick={() => setTab(t.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition ${
-                      active ? "bg-green-600 text-white" : "bg-neutral-900 text-neutral-400 hover:bg-neutral-800"
+                    className={`flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap transition ${
+                      active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"
                     }`}
                   >
                     <Icon size={16} />
@@ -174,7 +184,7 @@ function Configuration() {
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-green-500"
+                    className="field"
                     placeholder="Ex : Alexia, conseillère boutique"
                   />
                 </div>
@@ -182,8 +192,8 @@ function Configuration() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label className="text-sm font-semibold">Modèle d'IA</label>
-                    <span className="text-xs text-neutral-500">
-                      Prompt score <span className="text-green-400 font-bold">10</span>/10
+                    <span className="text-xs text-muted-foreground">
+                      Prompt score <span className="font-bold text-primary">10</span>/10
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -193,8 +203,8 @@ function Configuration() {
                         onClick={() => setModel(m.id)}
                         className={`text-left p-3 rounded-xl border transition ${
                           model === m.id
-                            ? "border-green-500 bg-green-500/10"
-                            : "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
+                            ? "border-primary bg-accent"
+                            : "border-border bg-card hover:bg-muted"
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -213,7 +223,7 @@ function Configuration() {
                   <select
                     value={tone}
                     onChange={(e) => setTone(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 outline-none focus:border-green-500"
+                    className="field"
                   >
                     {TONES.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -226,26 +236,26 @@ function Configuration() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-semibold">Prompt de l'agent</label>
-                    <span className="text-xs text-neutral-500">{prompt.length} / 12000 caractères</span>
+                    <span className="text-xs text-muted-foreground">{prompt.length} / 12000 caractères</span>
                   </div>
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value.slice(0, 12000))}
                     rows={16}
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 font-mono text-sm outline-none focus:border-green-500 resize-none"
+                    className="field resize-none font-mono text-sm"
                   />
                 </div>
 
                 {saveError && (
-                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 p-4 text-sm">
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
                     {saveError}
                   </div>
                 )}
 
-                <button
+                <Button
                   onClick={save}
                   disabled={saving}
-                  className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50"
+                  className="h-12 w-full shadow-[var(--shadow-neon)]"
                 >
                   {saving ? (
                     <><Loader2 className="h-4 w-4 animate-spin" /> Enregistrement…</>
@@ -254,14 +264,14 @@ function Configuration() {
                   ) : (
                     <><Save size={18} /> Enregistrer</>
                   )}
-                </button>
+                </Button>
               </div>
             )}
 
             {tab === "connexions" && agentId && <AgentPairing agentId={agentId} />}
 
             {tab !== "prompt" && tab !== "connexions" && (
-              <div className="text-center py-20 text-neutral-500">
+              <div className="py-20 text-center text-muted-foreground">
                 <Bot size={48} className="mx-auto mb-4 opacity-30" />
                 <p>Cette section sera bientôt disponible.</p>
               </div>
@@ -280,10 +290,10 @@ function AgentPairing({ agentId }: { agentId: string }) {
   const connected = w.status === "connected";
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+    <div className="grid gap-6 rounded-md border border-border bg-card p-5 md:grid-cols-2">
       <div className="space-y-4">
         <h2 className="text-xl font-bold">Appairer WhatsApp</h2>
-        <ol className="list-decimal space-y-2 pl-5 text-sm text-neutral-400">
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
           <li>Ouvrez WhatsApp sur votre téléphone</li>
           <li>Appareils connectés → Connecter un appareil</li>
           <li>Scannez le QR code ci-contre</li>
@@ -291,50 +301,50 @@ function AgentPairing({ agentId }: { agentId: string }) {
         <p className="text-sm">
           Statut :{" "}
           {w.loading ? (
-            <span className="font-bold text-neutral-400">Chargement…</span>
+            <span className="font-bold text-muted-foreground">Chargement…</span>
           ) : connected ? (
-            <span className="font-bold text-green-400">
+            <span className="font-bold text-success">
               <CheckCircle2 className="mr-1 inline h-4 w-4" />
               WhatsApp connecté{w.phone ? ` · ${w.phone}` : ""}
             </span>
           ) : w.error ? (
-            <span className="font-bold text-red-400">Erreur de connexion</span>
+            <span className="font-bold text-destructive">Erreur de connexion</span>
           ) : w.qr ? (
-            <span className="font-bold text-green-500">Scannez le QR code</span>
+            <span className="font-bold text-primary">Scannez le QR code</span>
           ) : w.status === "pending" || w.connecting ? (
-            <span className="font-bold text-neutral-400">Génération du QR code…</span>
+            <span className="font-bold text-muted-foreground">Génération du QR code…</span>
           ) : (
-            <span className="font-bold text-neutral-400">Non connecté</span>
+            <span className="font-bold text-muted-foreground">Non connecté</span>
           )}
         </p>
 
         {w.error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 p-3 text-sm">
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
             {w.error}
           </div>
         )}
 
         {!connected && (
-          <button
+          <Button
             onClick={w.connect}
             disabled={w.connecting}
-            className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50"
+            className="h-12 w-full shadow-[var(--shadow-neon)]"
           >
             {w.connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
             {w.connecting ? "Connexion…" : w.status === "disconnected" || w.error ? "Réessayer" : "Connecter WhatsApp"}
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="grid aspect-square w-full max-w-[280px] place-items-center justify-self-center rounded-2xl bg-white p-3">
+      <div className="grid aspect-square w-full max-w-[280px] place-items-center justify-self-center rounded-md bg-foreground p-3">
         {connected ? (
-          <CheckCircle2 className="h-20 w-20 text-green-500" />
+          <CheckCircle2 className="h-20 w-20 text-success" />
         ) : w.qr ? (
           <QRCodeSVG value={w.qr} size={256} className="h-full w-full" />
         ) : w.loading || w.connecting || w.status === "pending" ? (
-          <Loader2 className="h-12 w-12 animate-spin text-neutral-300" />
+          <Loader2 className="h-12 w-12 animate-spin text-background opacity-60" />
         ) : (
-          <QrCode className="h-16 w-16 text-neutral-300" />
+          <QrCode className="h-16 w-16 text-background opacity-40" />
         )}
       </div>
     </div>

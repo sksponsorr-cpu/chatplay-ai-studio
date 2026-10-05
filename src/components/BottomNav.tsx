@@ -12,8 +12,8 @@ const ITEMS = [
 export function BottomNav() {
   const { pathname } = useLocation();
   return (
-    <div className="fixed bottom-0 left-0 right-0 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur z-50">
-      <div className="max-w-3xl mx-auto flex justify-around py-2">
+    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur">
+      <div className="mx-auto flex max-w-3xl justify-around py-2">
         {ITEMS.map(({ to, label, icon: Icon }) => {
           const active = pathname === to;
           return (
@@ -21,7 +21,7 @@ export function BottomNav() {
               key={to}
               to={to}
               className={`flex flex-col items-center gap-0.5 px-3 py-1 transition ${
-                active ? "text-green-500" : "text-neutral-500 hover:text-white"
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Icon className="h-5 w-5" />

@@ -22,7 +22,7 @@ export const diagnoseWhatsApp = createServerFn({ method: "POST" })
         store: false,
         reasoning: { effort: "low" },
         instructions:
-          "Tu es le support de Chatplay, une app qui relie WhatsApp à un agent IA via un QR code stocké dans une base Supabase (table whatsapp_sessions, statuts idle/pending/qr/connected/disconnected) et un programme de connexion WhatsApp côté serveur qui écrit le QR. Réponds en français simple, pour un non-technicien, en 3 à 5 étapes numérotées courtes. Maximum 90 mots.",
+          "Tu es le support de Chatplay, une app qui relie WhatsApp à un agent IA via un QR code stocké dans la table whatsapp_connections (colonnes user_id, status, qr_code, phone_number). La fonction whatsapp-connect- lance la connexion et écrit le QR. Réponds en français simple, pour un non-technicien, en 3 à 5 étapes numérotées courtes. Maximum 90 mots.",
         input: `Statut: ${data.status}\nErreur: ${data.error}\nContexte: ${data.context ?? "aucun"}`,
       }),
     });
