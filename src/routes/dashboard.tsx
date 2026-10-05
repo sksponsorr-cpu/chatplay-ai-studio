@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Plus, QrCode, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { Bot, Plus, QrCode, ShieldCheck, Mic, Save, CheckCircle2, Loader2, AlertTriangle, Sparkles, Rocket, Pencil, Zap, History, ArrowDown, MessageCircle } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Logo } from "@/components/Logo";
 import { AuthGate } from "@/components/AuthGate";
@@ -9,12 +9,17 @@ import { useWhatsAppPairing } from "@/lib/useWhatsAppPairing";
 import { loadProfile } from "@/lib/api";
 import { isConfigured } from "@/lib/config";
 import { getAntiSpam, getProfile, getSubscription, listAgents, saveAntiSpam, upsertAgent, type AgentRow, type Subscription } from "@/lib/db";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Tableau de bord — Chatplay" },
       { name: "description", content: "Gérez vos agents IA WhatsApp." },
+      { property: "og:title", content: "Tableau de bord — Chatplay" },
+      { property: "og:description", content: "Gérez vos agents IA WhatsApp." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: () => <AuthGate><Dashboard /></AuthGate>,
@@ -58,20 +63,32 @@ function Dashboard() {
   const newAgent = (): Agent => ({ id: crypto.randomUUID(), name: "", instructions: "", voice_enabled: false, voice: "Sarah", status: "draft" });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-5 pb-24">
-      <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-background pb-28">
+      <div className="sticky top-0 z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
+        <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
         <Logo />
-        <button
+        <Button
+          variant="secondary"
+          size="icon"
           onClick={() => nav({ to: "/profil" })}
-          className="grid h-9 w-9 place-items-center rounded-full bg-accent font-bold text-accent-foreground hover:opacity-80"
+          className="rounded-full font-bold text-primary"
           aria-label="Profil"
         >
           {(name || "U").charAt(0).toUpperCase()}
-        </button>
+        </Button>
+        </div>
       </div>
 
-      <h1 className="mt-8 text-3xl font-bold">Content de vous revoir{name ? `, ${name}` : ""} 👋</h1>
-      <p className="mt-1 text-muted-foreground">Voici l'état de vos agents aujourd'hui.</p>
+      <main className="mx-auto max-w-5xl px-4 py-5">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold">Bonjour{name ? `, ${name}` : ""}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Pilotez vos agents WhatsApp.</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 rounded-md border border-primary/40 bg-accent px-3 py-2 font-bold text-primary">
+          <Zap className="h-4 w-4 fill-current" /> 50
+        </div>
+      </div>
       {sub && (
         <span className={`mt-3 inline-block rounded-full px-3 py-1 text-xs font-bold ${sub.status === "active" || sub.status === "trialing" ? "bg-success/15 text-success" : sub.status === "pending" ? "bg-accent text-accent-foreground" : "bg-destructive/15 text-destructive"}`}>
           {SUB_LABEL[sub.status]}{sub.trial_ends_at && sub.status === "trialing" ? ` · jusqu'au ${new Date(sub.trial_ends_at).toLocaleDateString("fr-FR")}` : ""}
@@ -85,13 +102,13 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-3 gap-3">
+      <div className="mt-5 grid grid-cols-3 gap-2">
         <Stat label="Agents" value={agents.length} />
         <Stat label="En ligne" value={online} tone="text-success" />
         <Stat label="Brouillons" value={agents.length - online} tone="text-muted-foreground" />
       </div>
 
-      <div className="mt-8 flex gap-2 overflow-x-auto">
+      <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
         {([["studio", "Studio", Bot], ["whatsapp", "WhatsApp", QrCode], ["antispam", "Anti-spam", ShieldCheck]] as const).map(([k, l, I]) => (
           <button key={k} data-active={tab === k} onClick={() => setTab(k)} className="option-card flex shrink-0 items-center gap-2 !rounded-full !px-4 !py-2 text-sm font-semibold"><I className="h-4 w-4" />{l}</button>
         ))}
@@ -100,29 +117,49 @@ function Dashboard() {
       <div className="mt-6">
         {tab === "studio" && (editing ? <Studio agent={editing} onSave={saveAgent} onCancel={() => setEditing(null)} /> : (
           <div className="space-y-3">
-            <button className="btn-neon w-full sm:w-auto" onClick={() => setEditing(newAgent())}><Plus className="h-5 w-5" /> Créer un agent</button>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <Button className="h-11 shadow-[var(--shadow-neon)]" onClick={() => setEditing(newAgent())}><Plus className="h-5 w-5" /> Nouvel agent</Button>
+              <Button variant="secondary" className="h-11"><Rocket className="h-5 w-5" /> Déployer</Button>
+            </div>
             {agents.length === 0 && <div className="glass p-8 text-center text-muted-foreground">Aucun agent pour l'instant. Créez votre premier agent IA.</div>}
             {agents.map((a) => (
-              <button key={a.id} onClick={() => nav({ to: "/configuration", search: { agent: a.id } })} className="glass flex w-full items-center gap-3 p-4 text-left">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary"><Bot className="h-5 w-5" /></span>
-                <div className="min-w-0 flex-1"><p className="truncate font-semibold">{a.name || "Sans nom"}</p><p className="truncate text-sm text-muted-foreground">{a.instructions || "Aucune instruction"}</p></div>
-                {a.voice_enabled && <Mic className="h-4 w-4 shrink-0 text-primary" />}
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${a.status === "online" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{a.status === "online" ? "En ligne" : "Brouillon"}</span>
-              </button>
+              <article key={a.id} className="overflow-hidden rounded-md border border-border bg-card">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 bg-secondary p-4">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">{(a.name || "A").charAt(0).toUpperCase()}</span>
+                  <div className="min-w-0"><p className="truncate text-lg font-bold">{a.name || "Sans nom"}</p><p className={`text-sm ${a.status === "online" ? "text-success" : "text-muted-foreground"}`}>{a.status === "online" ? "En ligne" : "Brouillon"}</p></div>
+                  <Button variant="ghost" size="icon" onClick={() => nav({ to: "/configuration", search: { agent: a.id } })} aria-label={`Modifier ${a.name}`}><Pencil /></Button>
+                </div>
+                <div className="relative grid min-h-64 place-items-center overflow-hidden bg-background p-6 text-center">
+                  <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(circle_at_center,var(--color-primary)_0,transparent_1px)] [background-size:24px_24px]" />
+                  <div className="relative">
+                    <span className="mx-auto grid h-20 w-20 place-items-center rounded-full border-4 border-primary bg-primary/20 text-primary shadow-[var(--shadow-neon)]"><Bot className="h-10 w-10" /></span>
+                    <h2 className="mt-5 text-2xl font-bold">Testez {a.name || "votre agent"} ici</h2>
+                    <ArrowDown className="mx-auto mt-4 h-5 w-5 text-muted-foreground" />
+                    <p className="mt-3 text-muted-foreground">Commencez par envoyer un message</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border bg-secondary px-4 py-4 text-muted-foreground">
+                  <span className="truncate">Message</span><Mic className="h-6 w-6" />
+                </div>
+                <div className="grid grid-cols-2 gap-px border-t border-border bg-border">
+                  <Button variant="secondary" className="h-12 rounded-none" onClick={() => nav({ to: "/configuration", search: { agent: a.id } })}><Pencil /> Modifier</Button>
+                  <Button variant="secondary" className="h-12 rounded-none"><History /> Activité</Button>
+                </div>
+              </article>
             ))}
           </div>
         ))}
         {tab === "whatsapp" && <Pairing />}
         {tab === "antispam" && <AntiSpam />}
       </div>
-
+      </main>
       <BottomNav />
     </div>
   );
 }
 
 function Stat({ label, value, tone = "text-primary" }: { label: string; value: number; tone?: string }) {
-  return <div className="glass p-4"><p className={`font-display text-3xl font-bold ${tone}`}>{value}</p><p className="text-xs text-muted-foreground sm:text-sm">{label}</p></div>;
+  return <div className="rounded-md border border-border bg-card p-3"><p className={`font-display text-2xl font-bold ${tone}`}>{value}</p><p className="truncate text-xs text-muted-foreground sm:text-sm">{label}</p></div>;
 }
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
