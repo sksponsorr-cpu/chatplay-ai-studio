@@ -1,12 +1,14 @@
 import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  Save, CheckCircle2, MessageSquare, Plug, BookOpen, Package, Settings2, Bot, Loader2, AlertTriangle,
+  Save, CheckCircle2, MessageSquare, Plug, BookOpen, Package, Settings2, Bot, Loader2, AlertTriangle, QrCode,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Logo } from "@/components/Logo";
 import { BottomNav } from "@/components/BottomNav";
 import { AuthGate } from "@/components/AuthGate";
 import { getAgent, saveAgentConfig, type AgentConfig } from "@/lib/db";
+import { useWhatsAppPairing } from "@/lib/useWhatsAppPairing";
 
 export const Route = createFileRoute("/configuration")({
   head: () => ({
@@ -256,7 +258,9 @@ function Configuration() {
               </div>
             )}
 
-            {tab !== "prompt" && (
+            {tab === "connexions" && agentId && <AgentPairing agentId={agentId} />}
+
+            {tab !== "prompt" && tab !== "connexions" && (
               <div className="text-center py-20 text-neutral-500">
                 <Bot size={48} className="mx-auto mb-4 opacity-30" />
                 <p>Cette section sera bientôt disponible.</p>
@@ -269,4 +273,70 @@ function Configuration() {
       <BottomNav />
     </div>
   );
-                    }
+}
+
+function AgentPairing({ agentId }: { agentId: string }) {
+  const w = useWhatsAppPairing(agentId);
+  const connected = w.status === "connected";
+
+  return (
+    <div className="grid gap-6 md:grid-cols-2 rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold">Appairer WhatsApp</h2>
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-neutral-400">
+          <li>Ouvrez WhatsApp sur votre téléphone</li>
+          <li>Appareils connectés → Connecter un appareil</li>
+          <li>Scannez le QR code ci-contre</li>
+        </ol>
+        <p className="text-sm">
+          Statut :{" "}
+          {w.loading ? (
+            <span className="font-bold text-neutral-400">Chargement…</span>
+          ) : connected ? (
+            <span className="font-bold text-green-400">
+              <CheckCircle2 className="mr-1 inline h-4 w-4" />
+              WhatsApp connecté{w.phone ? ` · ${w.phone}` : ""}
+            </span>
+          ) : w.error ? (
+            <span className="font-bold text-red-400">Erreur de connexion</span>
+          ) : w.qr ? (
+            <span className="font-bold text-green-500">Scannez le QR code</span>
+          ) : w.status === "pending" || w.connecting ? (
+            <span className="font-bold text-neutral-400">Génération du QR code…</span>
+          ) : (
+            <span className="font-bold text-neutral-400">Non connecté</span>
+          )}
+        </p>
+
+        {w.error && (
+          <div className="rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 p-3 text-sm">
+            {w.error}
+          </div>
+        )}
+
+        {!connected && (
+          <button
+            onClick={w.connect}
+            disabled={w.connecting}
+            className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50"
+          >
+            {w.connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+            {w.connecting ? "Connexion…" : w.status === "disconnected" || w.error ? "Réessayer" : "Connecter WhatsApp"}
+          </button>
+        )}
+      </div>
+
+      <div className="grid aspect-square w-full max-w-[280px] place-items-center justify-self-center rounded-2xl bg-white p-3">
+        {connected ? (
+          <CheckCircle2 className="h-20 w-20 text-green-500" />
+        ) : w.qr ? (
+          <QRCodeSVG value={w.qr} size={256} className="h-full w-full" />
+        ) : w.loading || w.connecting || w.status === "pending" ? (
+          <Loader2 className="h-12 w-12 animate-spin text-neutral-300" />
+        ) : (
+          <QrCode className="h-16 w-16 text-neutral-300" />
+        )}
+      </div>
+    </div>
+  );
+            }
